@@ -1,5 +1,16 @@
 {
-    "rewrites": [
-      { "source": "/(.*)", "destination": "/" }
-    ]
+  "buildCommand": "cd Front-end && npm install && npm run build",
+  "outputDirectory": "Front-end/.next",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
+  "functions": {
+    "Front-end/src/app/api/**/*.ts": {
+      "runtime": "nodejs18.x"
+    }
   }
+}
