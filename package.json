@@ -1,0 +1,22 @@
+{
+  "name": "sistema-jota",
+  "version": "1.0.0",
+  "description": "Sistema completo para JOTA Distribuidora - Front-end Next.js + Back-end Node.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd Front-end && npm run dev",
+    "dev:backend": "cd Back-End && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd Front-end && npm run build",
+    "build:backend": "cd Back-End && npm run build",
+    "start": "npm run start:backend",
+    "start:frontend": "cd Front-end && npm start",
+    "start:backend": "cd Back-End && npm start"
+  },
+  "keywords": ["distribuidora", "nextjs", "nodejs", "postgresql", "vercel"],
+  "author": "Lucas Ávila",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

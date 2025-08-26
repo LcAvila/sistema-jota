@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "Front-end/package.json",
+      "use": "@vercel/next"
+    },
+    {
+      "src": "Back-End/package.json",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "Back-End/src/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "Front-end/$1"
+    }
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "JWT_SECRET": "@jwt_secret",
+    "NODE_ENV": "production"
+  }
+}
