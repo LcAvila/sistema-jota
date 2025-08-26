@@ -1,0 +1,25 @@
+"use client";
+import { useOrders } from "@/lib/useOrders";
+import OrderCard from "../(components)/OrderCard";
+
+export default function SeparacaoPage() {
+  const { groups, loading, error, orders, setOrders, refresh } = useOrders(5000);
+  const onUpdated = (o: any) => setOrders(prev => prev.map(p => p.id === o.id ? o : p));
+  const list = [...groups.pending, ...groups.preparing];
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black">Separação</h1>
+        <button onClick={refresh} className="px-3 py-1.5 rounded border hover:bg-slate-100">Atualizar</button>
+      </div>
+      {loading && <div className="text-slate-500">Carregando...</div>}
+      {error && <div className="text-red-600">{error}</div>}
+      {list.length === 0 && <div className="text-sm text-slate-500">Sem pedidos para separar</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {list.map(o => (
+          <OrderCard key={o.id} order={o} onUpdated={onUpdated} />
+        ))}
+      </div>
+    </div>
+  );
+}
