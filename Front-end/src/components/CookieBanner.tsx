@@ -35,17 +35,17 @@ export default function CookieBanner() {
       className="fixed bottom-4 inset-x-4 z-[100] p-4 bg-white rounded-lg shadow-2xl border border-green-100 flex flex-col sm:flex-row items-center justify-between gap-4"
     >
       <div className="flex items-center gap-3">
-        <Cookie className="h-8 w-8 text-brand flex-shrink-0" />
-        <p className="text-sm text-brand-dark flex-1">
+        <Cookie className="h-8 w-8 text-green-600 flex-shrink-0" />
+        <p className="text-sm text-gray-700 flex-1">
           Usamos cookies para melhorar sua experiência. Ao continuar, você concorda com nossa{" "}
-          <Link href="/politica-de-cookies" className="underline hover:text-brand transition-colors">Política de Cookies</Link> e{" "}
-          <Link href="/politica-de-privacidade" className="underline hover:text-brand transition-colors">Política de Privacidade</Link>.
+          <Link href="/politica-de-cookies" className="underline hover:text-green-600 transition-colors">Política de Cookies</Link> e{" "}
+          <Link href="/politica-de-privacidade" className="underline hover:text-green-600 transition-colors">Política de Privacidade</Link>.
         </p>
       </div>
       <Button
         onClick={accept}
         aria-label="Aceitar e continuar"
-        className="w-full sm:w-auto bg-brand hover:bg-brand/90 text-white font-bold px-6"
+        className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold px-6"
       >
         Aceitar
       </Button>
