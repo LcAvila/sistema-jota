@@ -83,3 +83,5 @@ prisma/dev.db-journal
 
 # Vercel
 .vercel
+
+.vercel

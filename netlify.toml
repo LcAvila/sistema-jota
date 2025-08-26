@@ -1,0 +1,27 @@
+[build]
+  base = "Front-end"
+  command = "npm run build"
+  publish = "Front-end/.next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
+
+[[functions]]
+  name = "api"
+  directory = "Back-End/src"
+
+[dev]
+  command = "npm run dev"
+  port = 3000
+  targetPort = 3000
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
