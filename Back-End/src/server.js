@@ -2,7 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { PrismaClient } = require('@prisma/client');
 require('dotenv').config();
+
+const prisma = new PrismaClient();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -22,33 +25,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Usuários simulados (em produção, usar banco de dados)
-const users = [
-  {
-    id: 1,
-    name: 'Admin Sistema',
-    email: 'admin@jota.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
-    role: 'admin',
-    storeId: 1
-  },
-  {
-    id: 2,
-    name: 'Maria Santos',
-    email: 'maria@jota.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
-    role: 'seller',
-    storeId: 1
-  },
-  {
-    id: 3,
-    name: 'João Oliveira',
-    email: 'joao@jota.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
-    role: 'seller',
-    storeId: 1
-  }
-];
+// Conexão com banco de dados Neon Tech
 
 // Rota de login
 app.post('/api/auth/login', async (req, res) => {
@@ -59,10 +36,19 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Email e senha são obrigatórios' });
     }
 
-    // Buscar usuário
-    const user = users.find(u => u.email === email);
+    // Buscar usuário no banco de dados
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+      include: { store: true }
+    });
+
     if (!user) {
       return res.status(401).json({ message: 'Credenciais inválidas' });
+    }
+
+    // Verificar se o usuário está ativo
+    if (!user.active) {
+      return res.status(401).json({ message: 'Usuário inativo' });
     }
 
     // Verificar senha
@@ -87,7 +73,13 @@ app.post('/api/auth/login', async (req, res) => {
     
     res.json({
       token,
-      user: userWithoutPassword
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        storeId: user.storeId
+      }
     });
 
   } catch (error) {
@@ -127,14 +119,23 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Rota protegida de exemplo
-app.get('/api/user/profile', authenticateToken, (req, res) => {
-  const user = users.find(u => u.id === req.user.userId);
-  if (!user) {
-    return res.status(404).json({ message: 'Usuário não encontrado' });
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: { store: true }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    
+    const { password: _, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  } catch (error) {
+    console.error('Erro ao buscar perfil:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
   }
-  
-  const { password: _, ...userWithoutPassword } = user;
-  res.json(userWithoutPassword);
 });
 
 // Rota de health check
@@ -145,8 +146,6 @@ app.get('/api/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📍 API disponível em: http://localhost:${PORT}/api`);
-  console.log(`\n👤 Usuários de teste:`);
-  console.log(`   Admin: admin@jota.com / password`);
-  console.log(`   Vendedor: maria@jota.com / password`);
-  console.log(`   Vendedor: joao@jota.com / password`);
+  console.log(`\n👤 Conectado ao banco de dados Neon Tech`);
+  console.log(`   Use as credenciais do banco de dados`);
 });
