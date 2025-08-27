@@ -48,8 +48,14 @@ export default function LoginPage() {
     if (!emailValid) { setError("Informe um e-mail válido"); return; }
     if (!passwordValid) { setError("Senha deve ter ao menos 6 caracteres"); return; }
     setLoading(true);
+    
     try {
+      console.log('Iniciando processo de login...');
+      console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
+      
       const { token, user } = await loginRequest(email, password);
+      console.log('Login bem-sucedido, salvando dados...');
+      
       saveAuth(token, user);
       // Preenche a store de sessão usada pelo Guard do /admin
       loginSession({
@@ -60,11 +66,14 @@ export default function LoginPage() {
         email: user.email,
         storeId: (user as any).storeId,
       });
+      
       // Persist or clear remembered email
       try {
         if (rememberMe) localStorage.setItem("rememberedEmail", email);
         else localStorage.removeItem("rememberedEmail");
       } catch {}
+      
+      console.log('Redirecionando usuário...');
       // Redirecionamento por papel
       if (hasRole(["admin","supervisor"], user.role)) {
         router.replace("/admin");
@@ -74,8 +83,11 @@ export default function LoginPage() {
         setError("Seu perfil não possui rota configurada.");
       }
     } catch (err: any) {
+      console.error('Erro durante login:', err);
       setError(err?.message || "Falha no login");
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
@@ -90,6 +102,14 @@ export default function LoginPage() {
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Bem-vindo ao Painel</h1>
               <p className="text-sm text-slate-600 dark:text-slate-300">Acesso para colaboradores e administradores</p>
             </div>
+            
+            {/* Informações de debug */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                <p><strong>Debug:</strong> API URL: {process.env.NEXT_PUBLIC_API_URL || 'Não configurada'}</p>
+                <p><strong>Ambiente:</strong> {process.env.NODE_ENV}</p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">

@@ -33,16 +33,49 @@ export function logout() {
 
 export async function loginRequest(email: string, password: string): Promise<{ token: string; user: AuthUser }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-  const resp = await fetch(`${baseUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!resp.ok) {
-    const data = await resp.json().catch(() => ({}));
-    throw new Error(data?.message || `Falha no login (HTTP ${resp.status})`);
+  
+  try {
+    console.log('Tentando login em:', `${baseUrl}/auth/login`);
+    
+    const resp = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    console.log('Resposta do servidor:', resp.status, resp.statusText);
+    
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      console.error('Erro na resposta:', data);
+      
+      // Mensagens de erro mais específicas
+      if (resp.status === 401) {
+        throw new Error('E-mail ou senha incorretos');
+      } else if (resp.status === 404) {
+        throw new Error('Serviço de autenticação não encontrado');
+      } else if (resp.status === 500) {
+        throw new Error('Erro interno do servidor');
+      } else if (resp.status === 0 || resp.status >= 500) {
+        throw new Error('Servidor não está respondendo. Verifique sua conexão.');
+      } else {
+        throw new Error(data?.message || `Falha no login (HTTP ${resp.status})`);
+      }
+    }
+    
+    const result = await resp.json();
+    console.log('Login bem-sucedido:', result);
+    return result;
+    
+  } catch (error: any) {
+    console.error('Erro durante login:', error);
+    
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
+    }
+    
+    throw error;
   }
-  return resp.json();
 }
 
 export function hasRole(required: string | string[] | undefined, role?: string | null): boolean {
