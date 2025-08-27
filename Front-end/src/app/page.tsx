@@ -14,6 +14,7 @@ import AboutSection from "@/components/AboutSection";
 import ContactSection from "@/components/ContactSection";
 import SidebarMenu from "@/components/SidebarMenu";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 
 
@@ -406,30 +407,79 @@ export default function Home() {
                   <input
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
-                    placeholder="Busque por produtos (ex: Heineken, Gelo, Água, Refrigerantes...)"
-                    className="w-full rounded-xl border border-[#C0E6BA] bg-white pl-10 pr-4 py-3 shadow-[0_6px_24px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-[#4CA771]"
+                    placeholder="Busque por produtos (ex: Alho descascado, Carne Seca, Tempero do chef...)"
+                    className="w-full rounded-xl border-2 border-[#C0E6BA] bg-white pl-12 pr-4 py-4 shadow-[0_8px_32px_rgba(76,167,113,0.15)] focus:outline-none focus:ring-4 focus:ring-[#4CA771] focus:border-[#4CA771] transition-all duration-200 text-mg placeholder:text-[#666] placeholder:font-medium text-[#013237]"
                     aria-label="Buscar produtos"
                   />
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#4CA771]" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-[#4CA771]" />
                 </div>
                 {searchValue && (
-                  <ul className="absolute z-10 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-[#C0E6BA] bg-white shadow-lg">
-                    {products
-                      .filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase()))
-                      .slice(0, 10)
-                      .map((option) => (
-                        <li
-                          key={option.id}
-                          className="cursor-pointer px-4 py-2 hover:bg-[#EAF9E7]"
-                          onClick={() => handleSelectProduct(null as any, option)}
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute z-[9999] mt-3 max-h-80 w-full overflow-hidden rounded-2xl border-2 border-[#C0E6BA] bg-white shadow-2xl backdrop-blur-sm"
+                  >
+                    <div className="max-h-80 overflow-y-auto">
+                      {products
+                        .filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase()))
+                        .slice(0, 12)
+                        .map((option, index) => (
+                          <motion.li
+                            key={option.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.2, delay: index * 0.05 }}
+                            className="cursor-pointer px-6 py-4 hover:bg-[#EAF9E7] transition-all duration-200 border-b border-[#C0E6BA]/30 last:border-b-0 group"
+                            onClick={() => handleSelectProduct(null as any, option)}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-lg bg-[#EAF9E7] flex items-center justify-center flex-shrink-0">
+                                <span className="text-2xl">📦</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-[#013237] text-base group-hover:text-[#4CA771] transition-colors duration-200 truncate">
+                                  {option.name}
+                                </p>
+                                <p className="text-sm text-[#4CA771] font-medium">
+                                  {option.category}
+                                </p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="font-bold text-lg text-[#013237]">
+                                  R$ {option.price.toFixed(2)}
+                                </p>
+                                {option.isOnSale && (
+                                  <Badge className="bg-red-500 text-white text-xs px-2 py-1 rounded-full mt-1">
+                                    -{option.discount}%
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </motion.li>
+                        ))}
+                      {products.filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase())).length === 0 && (
+                        <motion.li
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="px-6 py-8 text-center"
                         >
-                          {option.name}
-                        </li>
-                      ))}
-                    {products.filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase())).length === 0 && (
-                      <li className="px-4 py-2 text-sm text-muted-foreground">Nenhum resultado</li>
+                          <div className="text-6xl mb-4">🔍</div>
+                          <p className="text-lg font-medium text-[#666] mb-2">Nenhum produto encontrado</p>
+                          <p className="text-sm text-[#999]">Tente usar termos diferentes ou verificar a ortografia</p>
+                        </motion.li>
+                      )}
+                    </div>
+                    
+                    {/* Footer do dropdown */}
+                    {products.filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase())).length > 0 && (
+                      <div className="px-6 py-4 bg-[#EAF9E7] border-t border-[#C0E6BA]">
+                        <p className="text-sm text-center text-[#4CA771] font-medium">
+                          {products.filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase())).length} produto(s) encontrado(s)
+                        </p>
+                      </div>
                     )}
-                  </ul>
+                  </motion.div>
                 )}
               </div>
             </motion.div>
