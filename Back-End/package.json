@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "seed:products": "node scripts/seedProducts.mjs",
-    "build": "tsc",
-    "start:api": "npm run build && node dist/app.js"
+    "seed:products": "node scripts/seedProducts.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.14.0",
