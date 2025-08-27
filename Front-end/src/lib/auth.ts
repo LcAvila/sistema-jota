@@ -32,7 +32,7 @@ export function logout() {
 }
 
 export async function loginRequest(email: string, password: string): Promise<{ token: string; user: AuthUser }> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
   
   try {
     console.log('Tentando login em:', `${baseUrl}/auth/login`);
