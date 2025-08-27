@@ -14,8 +14,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sua-chave-secreta-aqui';
 // Middleware
 app.use(cors({
   origin: [
-    'https://jota-gt92w3zjf-lucas-avilas-projects.vercel.app',
     'https://jota-psi.vercel.app',
+    'https://jota-gt92w3zjf-lucas-avilas-projects.vercel.app',
+    'https://jota-b2anh3yi5-lucas-avilas-projects.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001'
   ],
