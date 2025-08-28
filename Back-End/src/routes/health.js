@@ -1,7 +1,17 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-const { cache } = require('../config/redis');
 const logger = require('../config/logger');
+
+// Redis opcional
+let cache = null;
+if (process.env.NODE_ENV === 'production') {
+  try {
+    const redisModule = require('../config/redis');
+    cache = redisModule.cache;
+  } catch (error) {
+    console.log('⚠️ Redis não disponível para health check');
+  }
+}
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -44,16 +54,21 @@ router.get('/detailed', async (req, res) => {
     let redisStatus = 'unknown';
     let redisResponseTime = 0;
     
-    try {
-      const redisStart = Date.now();
-      await cache.set('health:test', 'ok', 60);
-      const testValue = await cache.get('health:test');
-      redisResponseTime = Date.now() - redisStart;
-      redisStatus = testValue === 'ok' ? 'connected' : 'error';
-      await cache.del('health:test');
-    } catch (redisError) {
-      redisStatus = 'error';
-      logger.error('Erro na conexão com Redis:', redisError);
+    if (cache) {
+      try {
+        const redisStart = Date.now();
+        await cache.set('health:test', 'ok', 60);
+        const testValue = await cache.get('health:test');
+        redisResponseTime = Date.now() - redisStart;
+        redisStatus = testValue === 'ok' ? 'connected' : 'error';
+        await cache.del('health:test');
+      } catch (redisError) {
+        redisStatus = 'error';
+        logger.error('Erro na conexão com Redis:', redisError);
+      }
+    } else {
+      redisStatus = 'not_configured';
+      redisResponseTime = 0;
     }
     
     // Métricas de sistema

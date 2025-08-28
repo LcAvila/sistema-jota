@@ -9,11 +9,22 @@ require('dotenv').config();
 
 // Importar configurações e middlewares
 const logger = require('./config/logger');
-const { connectRedis } = require('./config/redis');
 const rateLimiters = require('./middleware/rateLimit');
 const { validate } = require('./middleware/validation');
 const monitoring = require('./middleware/monitoring');
-const cacheMiddleware = require('./middleware/cache');
+
+// Redis opcional (só em produção)
+let connectRedis = null;
+let cacheMiddleware = null;
+if (process.env.NODE_ENV === 'production') {
+  try {
+    const redisModule = require('./config/redis');
+    connectRedis = redisModule.connectRedis;
+    cacheMiddleware = require('./middleware/cache');
+  } catch (error) {
+    console.log('⚠️ Redis não disponível, continuando sem cache');
+  }
+}
 
 const prisma = new PrismaClient();
 
@@ -43,6 +54,8 @@ app.use(cors({
     'https://jota-gt92w3zjf-lucas-avilas-projects.vercel.app',
     'https://jota-b2anh3yi5-lucas-avilas-projects.vercel.app',
     'https://jota-aqh6qz64m-lucas-avilas-projects.vercel.app',
+    'https://jota-2ors1yi7h-lucas-avilas-projects.vercel.app',
+    'https://jota-c8v01hy2p-lucas-avilas-projects.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001'
   ],
@@ -202,9 +215,16 @@ app.use('/api/health', healthRoutes);
 // Função de inicialização
 async function startServer() {
   try {
-    // Conectar ao Redis (opcional)
-    if (process.env.REDIS_HOST) {
-      await connectRedis();
+    // Conectar ao Redis (só em produção)
+    if (process.env.NODE_ENV === 'production' && connectRedis) {
+      try {
+        await connectRedis();
+        console.log(`🗄️ Cache: Redis configurado`);
+      } catch (error) {
+        console.log(`⚠️ Cache: Redis não disponível`);
+      }
+    } else {
+      console.log(`⚠️ Cache: Redis não configurado (modo desenvolvimento)`);
     }
     
     // Iniciar servidor
@@ -219,7 +239,6 @@ async function startServer() {
       console.log(`📍 API disponível em: http://localhost:${PORT}/api`);
       console.log(`🔒 Segurança: Helmet, Rate Limiting, CORS configurado`);
       console.log(`📊 Monitoramento: Winston Logger, Performance Monitor`);
-      console.log(`🗄️ Cache: Redis configurado`);
       console.log(`✅ Validação: Joi schemas implementados`);
       console.log(`\n👤 Conectado ao banco de dados Neon Tech`);
       console.log(`   Use as credenciais do banco de dados`);
