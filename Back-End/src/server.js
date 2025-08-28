@@ -56,6 +56,7 @@ app.use(cors({
     'https://jota-aqh6qz64m-lucas-avilas-projects.vercel.app',
     'https://jota-2ors1yi7h-lucas-avilas-projects.vercel.app',
     'https://jota-c8v01hy2p-lucas-avilas-projects.vercel.app',
+    'https://jota-af3u2f1ob-lucas-avilas-projects.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001'
   ],
