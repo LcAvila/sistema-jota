@@ -47,49 +47,24 @@ app.use(helmet({
 
 app.use(compression());
 
-// CORS configurado - Mais robusto
+// CORS SUPER SIMPLES - PERMITIR TUDO
 app.use((req, res, next) => {
-  // Permitir todas as origens em desenvolvimento
-  const allowedOrigins = [
-    'https://jota-psi.vercel.app',
-    'https://jota-gt92w3zjf-lucas-avilas-projects.vercel.app',
-    'https://jota-b2anh3yi5-lucas-avilas-projects.vercel.app',
-    'https://jota-aqh6qz64m-lucas-avilas-projects.vercel.app',
-    'https://jota-2ors1yi7h-lucas-avilas-projects.vercel.app',
-    'https://jota-c8v01hy2p-lucas-avilas-projects.vercel.app',
-    'https://jota-af3u2f1ob-lucas-avilas-projects.vercel.app',
-    'https://jota-6ul4omoej-lucas-avilas-projects.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ];
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
-  const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    res.sendStatus(200);
+  } else {
+    next();
   }
-  
-  next();
 });
 
 // CORS adicional com express-cors
 app.use(cors({
-  origin: true, // Permitir todas as origens
-  credentials: true,
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Middleware de monitoramento
