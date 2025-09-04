@@ -3,17 +3,42 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { useToast } from "@/store/toast";
 
-// Reaproveita o tipo usado no dashboard
-type Venda = { id: number; cliente: string; itens: string[]; total: number; vendedor: string; forma: string; data: string; createdAt: string };
+// Tipo atualizado para incluir todos os campos da tela de importar vendas
+type Venda = { 
+  id: number; 
+  cliente: string; 
+  telefone?: string;
+  cep?: string;
+  endereco?: string;
+  itens: string[]; 
+  total: number; 
+  vendedor: string; 
+  forma: string; 
+  canal?: string;
+  data: string; 
+  createdAt: string; 
+};
 
 type GroupRow = { key: string; total: number; pedidos: number };
 
-type Filters = { from: string; to: string; seller: string; forma: string };
+type Filters = { 
+  from: string; 
+  to: string; 
+  seller: string; 
+  forma: string; 
+  canal: string;
+};
 
 export default function RelatoriosPage() {
   const { info, error: showError } = useToast();
   const [vendas, setVendas] = useState<Venda[]>([]);
-  const [filters, setFilters] = useState<Filters>({ from: "", to: "", seller: "", forma: "" });
+  const [filters, setFilters] = useState<Filters>({ 
+    from: "", 
+    to: "", 
+    seller: "", 
+    forma: "", 
+    canal: "" 
+  });
 
   // Carrega vendas do backend, com fallback ao localStorage
   const reload = useCallback(async () => {
@@ -32,11 +57,15 @@ export default function RelatoriosPage() {
         return {
           id: Number(r.id ?? idx + 1),
           cliente: r.cliente ?? '',
+          telefone: r.telefone || null,
+          cep: r.cep || null,
+          endereco: r.endereco || null,
           itens: Array.isArray(r.itens) ? r.itens : [],
           total: Number(r.total ?? 0),
           vendedor: r.vendedor ?? '',
           forma: r.forma ?? '',
-          data: `${hh}:${mm}`,
+          canal: r.canal || 'Local',
+          data: r.data || `${hh}:${mm}`,
           createdAt,
         } as Venda;
       });
@@ -61,6 +90,7 @@ export default function RelatoriosPage() {
   // Distincts
   const vendedores = useMemo(() => Array.from(new Set(vendas.map(v => v.vendedor).filter(Boolean))), [vendas]);
   const formas = useMemo(() => Array.from(new Set(vendas.map(v => v.forma).filter(Boolean))), [vendas]);
+  const canais = useMemo(() => Array.from(new Set(vendas.map(v => v.canal).filter(Boolean))), [vendas]);
 
   // Filtrados
   const filtered = useMemo(() => {
@@ -70,6 +100,7 @@ export default function RelatoriosPage() {
       if (filters.to && d > filters.to) return false;
       if (filters.seller && v.vendedor !== filters.seller) return false;
       if (filters.forma && v.forma !== filters.forma) return false;
+      if (filters.canal && v.canal !== filters.canal) return false;
       return true;
     });
   }, [vendas, filters]);
@@ -107,22 +138,28 @@ export default function RelatoriosPage() {
 
   const porVendedor = useMemo(() => groupBy(v => v.vendedor), [filtered]);
   const porForma = useMemo(() => groupBy(v => v.forma), [filtered]);
+  const porCanal = useMemo(() => groupBy(v => v.canal), [filtered]);
   const porDia = useMemo(() => groupBy(v => (v.createdAt||"").slice(0,10)), [filtered]);
 
   // Percentuais e dimensionamento de barras
   const maxVendedor = Math.max(1, ...porVendedor.map(r => r.total));
   const maxForma = Math.max(1, ...porForma.map(r => r.total));
+  const maxCanal = Math.max(1, ...porCanal.map(r => r.total));
   const maxDia = Math.max(1, ...porDia.map(r => r.total));
 
   // Exportações
   const exportCSV = useCallback(() => {
-    const headers = ["id","cliente","itens","vendedor","forma","total","data","createdAt"];
+    const headers = ["id","cliente","telefone","cep","endereco","itens","vendedor","forma","canal","total","data","createdAt"];
     const rows = filtered.map(v => [
       v.id,
       v.cliente,
+      v.telefone || '',
+      v.cep || '',
+      v.endereco || '',
       '"' + v.itens.join('; ') + '"',
       v.vendedor,
       v.forma,
+      v.canal || 'Local',
       v.total.toFixed(2).replace('.', ','),
       v.data,
       v.createdAt,
@@ -132,7 +169,7 @@ export default function RelatoriosPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const suffix = `${filters.from || ''}_a_${filters.to || ''}${filters.seller ? `_vend_${filters.seller}` : ''}${filters.forma ? `_forma_${filters.forma}` : ''}`;
+    const suffix = `${filters.from || ''}_a_${filters.to || ''}${filters.seller ? `_vend_${filters.seller}` : ''}${filters.forma ? `_forma_${filters.forma}` : ''}${filters.canal ? `_canal_${filters.canal}` : ''}`;
     a.download = `relatorio_vendas_${suffix || 'todos'}.csv`;
     document.body.appendChild(a);
     a.click(); a.remove(); URL.revokeObjectURL(url);
@@ -142,19 +179,23 @@ export default function RelatoriosPage() {
     const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
     // Sheet Vendas (filtradas)
-    const vendasHeader = ['ID','Cliente','Itens','Vendedor','Forma','Total','Hora','CriadoEm'];
+    const vendasHeader = ['ID','Cliente','Telefone','CEP','Endereço','Itens','Vendedor','Forma','Canal','Total','Data','CriadoEm'];
     const vendasRows = filtered.map(v => [
       `#${v.id}`,
       v.cliente,
+      v.telefone || '',
+      v.cep || '',
+      v.endereco || '',
       v.itens.join(', '),
       v.vendedor,
       v.forma,
+      v.canal || 'Local',
       Number(v.total.toFixed(2)),
       v.data,
       v.createdAt,
     ]);
     const wsVendas = XLSX.utils.aoa_to_sheet([
-      ['Período', filters.from || '-', 'a', filters.to || '-', 'Vendedor', filters.seller || 'Todos', 'Forma', filters.forma || 'Todas'],
+      ['Período', filters.from || '-', 'a', filters.to || '-', 'Vendedor', filters.seller || 'Todos', 'Forma', filters.forma || 'Todas', 'Canal', filters.canal || 'Todos'],
       [],
       vendasHeader,
       ...vendasRows,
@@ -175,6 +216,12 @@ export default function RelatoriosPage() {
     (wsForma as any)['!freeze'] = { rows: 1 };
     XLSX.utils.book_append_sheet(wb, wsForma, 'PorForma');
 
+    // Sheet Por Canal
+    const wsCanal = XLSX.utils.json_to_sheet(porCanal.map(r => ({ Canal: r.key, Pedidos: r.pedidos, Total: Number(r.total.toFixed(2)) })));
+    // @ts-ignore
+    (wsCanal as any)['!freeze'] = { rows: 1 };
+    XLSX.utils.book_append_sheet(wb, wsCanal, 'PorCanal');
+
     // Sheet Por Dia
     const wsDia = XLSX.utils.json_to_sheet(porDia.map(r => ({ Dia: r.key, Pedidos: r.pedidos, Total: Number(r.total.toFixed(2)) })));
     // @ts-ignore
@@ -182,7 +229,7 @@ export default function RelatoriosPage() {
     XLSX.utils.book_append_sheet(wb, wsDia, 'PorDia');
 
     XLSX.writeFile(wb, `relatorios_${new Date().toISOString().slice(0,10)}.xlsx`);
-  }, [filtered, filters, porVendedor, porForma, porDia]);
+  }, [filtered, filters, porVendedor, porForma, porCanal, porDia]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-5">
@@ -190,7 +237,7 @@ export default function RelatoriosPage() {
         <div>
           <Breadcrumbs items={[{ label: "Admin", href: "/admin" }, { label: "Relatórios" }]} />
           <h1 className="text-2xl md:text-3xl font-black">Relatórios</h1>
-          <p className="text-sm text-slate-500">Analise vendas por período, vendedor e forma de pagamento.</p>
+          <p className="text-sm text-slate-500">Analise vendas por período, vendedor, forma de pagamento e canal de venda.</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={reload} className="px-3 py-2 rounded border border-[var(--border)] hover:bg-[var(--muted)] text-sm">Recarregar</button>
@@ -200,7 +247,7 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Filtros */}
-      <div className="border border-[var(--border)] rounded-lg bg-[var(--card)] p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3">
+      <div className="border border-[var(--border)] rounded-lg bg-[var(--card)] p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-3">
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-500 min-w-14">De</label>
           <input value={filters.from} onChange={e=>set({ from: e.target.value })} type="date" className="px-2 py-1.5 rounded border border-[var(--border)] bg-transparent text-sm w-full" />
@@ -231,8 +278,19 @@ export default function RelatoriosPage() {
             {formas.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-500 min-w-14">Canal</label>
+          <select
+            value={filters.canal}
+            onChange={e=>set({ canal: e.target.value })}
+            className="px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] text-sm w-full focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
+          >
+            <option value="">Todos</option>
+            {canais.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
         <div className="flex items-center gap-2 justify-end">
-          <button onClick={() => set({ from: '', to: '', seller: '', forma: '' })} className="px-2 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)] text-xs">Limpar</button>
+          <button onClick={() => set({ from: '', to: '', seller: '', forma: '', canal: '' })} className="px-2 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)] text-xs">Limpar</button>
         </div>
       </div>
 
@@ -245,12 +303,15 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Seções de análise */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card title="Por Vendedor">
           <GroupedTable rows={porVendedor} max={maxVendedor} labelHeader="Vendedor" />
         </Card>
         <Card title="Por Forma de Pagamento">
           <GroupedTable rows={porForma} max={maxForma} labelHeader="Forma" />
+        </Card>
+        <Card title="Por Canal de Venda">
+          <GroupedTable rows={porCanal} max={maxCanal} labelHeader="Canal" />
         </Card>
       </div>
 
@@ -271,8 +332,11 @@ export default function RelatoriosPage() {
               <tr>
                 <th className="text-left p-3">#</th>
                 <th className="text-left p-3">Cliente</th>
+                <th className="text-left p-3">Contato</th>
+                <th className="text-left p-3">Endereço</th>
                 <th className="text-left p-3">Vendedor</th>
                 <th className="text-left p-3">Forma</th>
+                <th className="text-left p-3">Canal</th>
                 <th className="text-left p-3">Itens</th>
                 <th className="text-right p-3">Total</th>
                 <th className="text-right p-3">Data</th>
@@ -282,12 +346,33 @@ export default function RelatoriosPage() {
               {filtered.map(v => (
                 <tr key={`${(v.createdAt||'')}-${v.id}`} className="border-t border-[var(--border)]">
                   <td className="p-3">#{v.id}</td>
-                  <td className="p-3">{v.cliente}</td>
+                  <td className="p-3">
+                    <div>
+                      <div className="font-medium">{v.cliente}</div>
+                      {v.telefone && <div className="text-xs text-slate-500">{v.telefone}</div>}
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    {v.cep && <div className="text-xs">{v.cep}</div>}
+                  </td>
+                  <td className="p-3">
+                    {v.endereco && (
+                      <div className="text-xs text-slate-400 truncate max-w-[200px]" title={v.endereco}>
+                        {v.endereco}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-3">{v.vendedor}</td>
                   <td className="p-3">{v.forma}</td>
-                  <td className="p-3 text-slate-400 truncate max-w-[360px]" title={v.itens.join(', ')}>{v.itens.join(', ')}</td>
+                  <td className="p-3">{v.canal || 'Local'}</td>
+                  <td className="p-3 text-slate-400 truncate max-w-[200px]" title={v.itens.join(', ')}>{v.itens.join(', ')}</td>
                   <td className="p-3 text-right font-semibold text-[var(--brand)]">R$ {v.total.toFixed(2)}</td>
-                  <td className="p-3 text-right">{(v.createdAt||'').slice(0,10)} {v.data}</td>
+                  <td className="p-3 text-right">
+                    <div>
+                      <div>{(v.createdAt||'').slice(0,10)}</div>
+                      <div className="text-xs text-slate-500">{v.data}</div>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

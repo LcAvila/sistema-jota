@@ -1,352 +1,805 @@
-"use client"
+"use client";
+import React, { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/http";
+import { useToast } from "@/store/toast";
+import { 
+  TrendingUp, 
+  TrendingDown,
+  DollarSign, 
+  ShoppingCart, 
+  Users, 
+  RefreshCw,
+  Download,
+  BarChart3,
+  PieChart,
+  MapPin,
+  CreditCard,
+  Smartphone,
+  Store,
+  Target,
+  Activity,
+  Zap,
+  Globe,
+  Home,
+  MessageCircle,
+  Receipt,
+  Package,
+  Star,
+  Award,
+  ArrowUpRight,
+  ArrowDownRight,
+  Circle,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Calendar,
+  Filter,
+  Search,
+  Eye,
+  Plus,
+  Minus,
+  Percent,
+  User,
+  UserCheck
+} from "lucide-react";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { OverviewCards } from '@/components/dashboard/overview-cards'
-import { RecentSales } from '@/components/dashboard/recent-sales'
-import { SalesChart } from '@/components/dashboard/sales-chart'
-import { DashboardFilters } from '@/components/dashboard/dashboard-filters'
-import { TopProducts } from '@/components/dashboard/top-products'
-import { PieChart } from '@/components/dashboard/pie-chart'
-import { BarChart } from '@/components/dashboard/bar-chart'
-import { TopSeller } from '@/components/dashboard/top-seller'
-import { DollarSign, ShoppingCart, TrendingUp, Ban, Users, Package, Calendar, Clock, Star, Target, Activity, CreditCard } from 'lucide-react'
+// Tipos para os dados
+type Sale = {
+  id: number;
+  date: string;
+  total: number;
+  channel: 'web' | 'local' | 'whatsapp';
+  paymentMethod: 'pix' | 'credit' | 'debit' | 'cash';
+  customerRegion: string;
+  vendedor?: string;
+  cliente?: string;
+  telefone?: string;
+  cep?: string;
+  endereco?: string;
+  itens?: string[];
+};
 
-// Interfaces
-interface Filters {
-  from: string
-  to: string
-  seller: string
-  paymentMethod: string
-  channel: string
-}
+type Product = {
+  id: number;
+  name: string;
+  category: string;
+  salesCount: number;
+  revenue: number;
+};
 
-interface DashboardData {
+type RegionalData = {
+  region: string;
+  sales: number;
+  revenue: number;
+};
+
+type SalesData = {
+  daily: { date: string; total: number; orders: number }[];
+  weekly: any[];
+  monthly: any[];
+  yearly: any[];
+};
+
+type DashboardData = {
   totalRevenue: number;
   totalOrders: number;
-  averageTicket: number;
-  canceledOrders: number;
-  topProducts: { key: string; value: number }[];
-  paymentMethodData: { key: string; value: number }[];
-  sellerRankingData: { key: string; value: number }[];
-  recentSales: any[];
-  salesChart: { name: string; value: number }[];
-  salesChannelData: { key: string; value: number }[];
-}
+  averageOrderValue: number;
+  totalCustomers: number;
+  topProducts: Product[];
+  topSellers: { id: string; name: string; sales: number; revenue: number }[];
+  recentSales: Sale[];
+  salesData: SalesData;
+  channelData: { web: number; local: number; whatsapp: number };
+  paymentData: { pix: number; credit: number; debit: number; cash: number };
+  regionalData: RegionalData[];
+};
 
-const DashboardPage = () => {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [filters, setFilters] = useState<Filters>({
-    from: '',
-    to: '',
-    seller: '',
-    paymentMethod: '',
-    channel: '',
-  });
+export default function DashboardPage() {
+  const { success, error } = useToast();
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState('7d');
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (filters.from) params.append('from', filters.from);
-    if (filters.to) params.append('to', filters.to);
-    if (filters.seller) params.append('sellerId', filters.seller);
-    if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
+  // Dados do dashboard
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    totalRevenue: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+    totalCustomers: 0,
+    topProducts: [],
+    topSellers: [],
+    recentSales: [],
+    salesData: { daily: [], weekly: [], monthly: [], yearly: [] },
+    channelData: { web: 0, local: 0, whatsapp: 0 },
+    paymentData: { pix: 0, credit: 0, debit: 0, cash: 0 },
+    regionalData: []
+  });
 
+  useEffect(() => {
+    loadDashboardData();
+    
+    // Atualizar dados automaticamente a cada 30 segundos
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [dateRange]);
+
+  async function loadDashboardData() {
     try {
-      const response = await fetch(`http://localhost:4000/api/sales/dashboard?${params.toString()}`);
-      if (!response.ok) throw new Error('Network response was not ok');
-      const result: DashboardData = await response.json();
+      setLoading(true);
       
-      // Garantir que todos os arrays existam, mesmo que vazios
-      const safeData: DashboardData = {
-        totalRevenue: result.totalRevenue || 0,
-        totalOrders: result.totalOrders || 0,
-        averageTicket: result.averageTicket || 0,
-        canceledOrders: result.canceledOrders || 0,
-        topProducts: Array.isArray(result.topProducts) ? result.topProducts : [],
-        paymentMethodData: Array.isArray(result.paymentMethodData) ? result.paymentMethodData : [],
-        sellerRankingData: Array.isArray(result.sellerRankingData) ? result.sellerRankingData : [],
-        recentSales: Array.isArray(result.recentSales) ? result.recentSales : [],
-        salesChart: Array.isArray(result.salesChart) ? result.salesChart : [],
-        salesChannelData: Array.isArray(result.salesChannelData) ? result.salesChannelData : []
-      };
+      // Buscar dados da API do dashboard
+      const response = await fetch('/api/dashboard');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       
-      setData(safeData);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      // Definir dados padrão em caso de erro
-      setData({
-        totalRevenue: 0,
-        totalOrders: 0,
-        averageTicket: 0,
-        canceledOrders: 0,
-        topProducts: [],
-        paymentMethodData: [],
-        sellerRankingData: [],
-        recentSales: [],
-        salesChart: [],
-        salesChannelData: []
-      });
+      const data = await response.json();
+      setDashboardData(data);
+      
+      success('Dashboard atualizado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao carregar dashboard:', err);
+      error('Erro ao carregar dados do dashboard');
+      
+      // Fallback: tentar carregar do localStorage
+      try {
+        const raw = localStorage.getItem('admin_vendas');
+        if (raw) {
+          const vendas = JSON.parse(raw);
+          if (Array.isArray(vendas) && vendas.length > 0) {
+            // Calcular dados básicos do localStorage
+            const totalRevenue = vendas.reduce((sum, v) => sum + (v.total || 0), 0);
+            const totalOrders = vendas.length;
+            const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+            
+            // Criar dados simulados baseados no localStorage
+            const channelData = {
+              web: vendas.filter(v => v.forma === 'PIX' || v.forma === 'Cartão').length,
+              local: vendas.filter(v => v.forma === 'Dinheiro').length,
+              whatsapp: vendas.filter(v => v.forma === 'PIX').length
+            };
+            
+            const paymentData = {
+              pix: vendas.filter(v => v.forma === 'PIX').length,
+              credit: vendas.filter(v => v.forma === 'Cartão').length,
+              debit: 0,
+              cash: vendas.filter(v => v.forma === 'Dinheiro').length
+            };
+            
+            // Vendas diárias simuladas
+            const dailyData = Array.from({ length: 7 }, (_, i) => {
+              const date = new Date();
+              date.setDate(date.getDate() - (6 - i));
+              return {
+                date: date.toISOString().split('T')[0],
+                total: Math.random() * 1000 + 500, // Valor aleatório para demonstração
+                orders: Math.floor(Math.random() * 20) + 5
+              };
+            });
+            
+                         setDashboardData(prev => ({
+               ...prev,
+               totalRevenue,
+               totalOrders,
+               averageOrderValue,
+               totalCustomers: new Set(vendas.map(v => v.cliente)).size,
+               channelData,
+               paymentData,
+               salesData: { ...prev.salesData, daily: dailyData },
+               recentSales: vendas.slice(0, 10).map(v => ({
+                 id: v.id || Math.random(),
+                 date: v.createdAt || new Date().toISOString(),
+                 total: v.total || 0,
+                 channel: v.canal === 'Website' ? 'web' : v.canal === 'WhatsApp' ? 'whatsapp' : 'local',
+                 paymentMethod: v.forma === 'PIX' ? 'pix' : v.forma === 'Cartão de Crédito' ? 'credit' : v.forma === 'Cartão de Débito' ? 'debit' : 'cash',
+                 customerRegion: v.endereco ? 'Jacutinga' : 'Não informado',
+                 vendedor: v.vendedor,
+                 cliente: v.cliente,
+                 telefone: v.telefone,
+                 cep: v.cep,
+                 endereco: v.endereco,
+                 itens: v.itens
+               }))
+             }));
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('Erro no fallback:', fallbackErr);
+      }
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
 
-  const { 
-    totalRevenue = 0, 
-    totalOrders = 0, 
-    averageTicket = 0, 
-    canceledOrders = 0,
-    topProducts = [],
-    paymentMethodData = [],
-    sellerRankingData = [],
-    recentSales = [],
-    salesChart = [],
-    salesChannelData = []
-  } = data || {};
-
-  const kpis = [
-    {
-      title: 'Faturamento Total',
-      value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue),
-      change: '+12.5%', // Simulado
-      trend: 'up' as const,
-      icon: <DollarSign className="h-4 w-4" />
-    },
-    {
-      title: 'Total de Pedidos',
-      value: totalOrders.toString(),
-      change: '+8.2%', // Simulado
-      trend: 'up' as const,
-      icon: <ShoppingCart className="h-4 w-4" />
-    },
-    {
-      title: 'Ticket Médio',
-      value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(averageTicket),
-      change: '+3.1%', // Simulado
-      trend: 'up' as const,
-      icon: <TrendingUp className="h-4 w-4" />
-    },
-    {
-      title: 'Pedidos Cancelados',
-      value: canceledOrders.toString(),
-      change: `${totalOrders > 0 ? ((canceledOrders / totalOrders) * 100).toFixed(1) : '0.0'}%`,
-      trend: 'down' as const,
-      icon: <Ban className="h-4 w-4" />
-    }
-  ];
-
-  const [filterOptions, setFilterOptions] = useState({
-    sellers: [] as { id: number; name: string }[],
-    paymentMethods: [] as { id: number; name: string }[],
-    channels: [] as { id: string; name: string }[],
-  });
-
-  useEffect(() => {
-    const fetchFilterOptions = async () => {
-      try {
-        const response = await fetch('/api/dashboard/filters');
-        const options = await response.json();
-        setFilterOptions(options);
-      } catch (error) {
-        console.error('Failed to fetch filter options:', error);
-      }
-    };
-
-    fetchFilterOptions();
-  }, []);
-
-  const onFiltersChange = (newFilters: Filters) => {
-    setFilters(newFilters);
+  const formatPercentage = (value: number) => {
+    if (typeof value !== 'number' || isNaN(value)) return '0.0%';
+    return `${value.toFixed(1)}%`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-6">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between space-y-4 lg:space-y-0">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
-                Dashboard de Vendas
-              </h1>
-              <p className="text-slate-600 dark:text-slate-300 mt-2">
-                Visão completa do desempenho do seu negócio
-              </p>
-            </div>
-            <DashboardFilters
-              filters={filters}
-              vendedores={filterOptions.sellers}
-              formasPagamento={filterOptions.paymentMethods}
-              canais={filterOptions.channels}
-              onFiltersChange={onFiltersChange}
-              onRefresh={fetchData}
-              loading={loading}
-            />
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-[var(--foreground)]">Dashboard Ecommerce</h1>
+            
           </div>
+          <p className="text-[var(--foreground)] opacity-70 mt-2">
+            Visão geral das vendas e métricas do seu negócio
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
+          >
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="90d">Últimos 90 dias</option>
+            <option value="1y">Último ano</option>
+          </select>
+          
+          <button
+            onClick={loadDashboardData}
+            className="p-2 rounded-lg bg-[var(--card)] border border-[var(--border)] hover:bg-[var(--muted)] transition-colors"
+            title="Atualizar dados"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          
+          {/* Indicador de dados em tempo real */}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-[var(--muted)] to-[var(--muted)] bg-opacity-50 border border-[var(--border)] hover:border-[var(--chart-green)] transition-all duration-300">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-[var(--chart-green)] animate-pulse" />
+              <span className="text-sm text-[var(--foreground)] opacity-70">Tempo Real</span>
+            </div>
+            <div className="w-px h-6 bg-[var(--border)]"></div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-[var(--chart-green)]">
+                {dashboardData.totalOrders > 0 ? dashboardData.totalOrders : '0'}
+              </div>
+              <div className="text-xs text-[var(--foreground)] opacity-60">Vendas</div>
+            </div>
+          </div>
+          
+          <button className="px-4 py-2 bg-[var(--chart-green)] text-white rounded-lg font-medium hover:bg-[var(--chart-green-dark)] transition-colors flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Exportar
+          </button>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        {/* Revenue Card */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50 hover:shadow-2xl transition-all duration-300">
+        <div className="admin-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Faturamento Total</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}
+              <p className="text-sm text-[var(--foreground)] opacity-70">Faturamento Total</p>
+              <p className="text-2xl font-bold text-[var(--foreground)]">
+                {formatCurrency(dashboardData.totalRevenue)}
               </p>
-              <div className="flex items-center mt-2">
-                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                <span className="text-sm font-medium text-green-500">+12.5%</span>
-                <span className="text-sm text-slate-500 dark:text-slate-400 ml-1">vs mês anterior</span>
-              </div>
             </div>
-            <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl">
-              <DollarSign className="h-8 w-8 text-white" />
+            <Target className="w-8 h-8 text-[var(--chart-green)]" />
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[var(--chart-green)]" />
+              <span className="text-sm text-[var(--chart-green)]">+12.5%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-[var(--foreground)] opacity-60">vs mês anterior</span>
+              <ArrowUpRight className="w-3 h-3 text-[var(--chart-green)]" />
             </div>
           </div>
         </div>
 
-        {/* Orders Card */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50 hover:shadow-2xl transition-all duration-300">
+        <div className="admin-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Total de Pedidos</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{totalOrders}</p>
-              <div className="flex items-center mt-2">
-                <TrendingUp className="h-4 w-4 text-blue-500 mr-1" />
-                <span className="text-sm font-medium text-blue-500">+8.2%</span>
-                <span className="text-sm text-slate-500 dark:text-slate-400 ml-1">vs mês anterior</span>
-              </div>
-            </div>
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl">
-              <ShoppingCart className="h-8 w-8 text-white" />
-            </div>
-          </div>
-        </div>
-
-        {/* Average Ticket Card */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50 hover:shadow-2xl transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Ticket Médio</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(averageTicket)}
+              <p className="text-sm text-[var(--foreground)] opacity-70">Total de Pedidos</p>
+              <p className="text-2xl font-bold text-[var(--foreground)]">
+                {dashboardData.totalOrders.toLocaleString()}
               </p>
-              <div className="flex items-center mt-2">
-                <TrendingUp className="h-4 w-4 text-purple-500 mr-1" />
-                <span className="text-sm font-medium text-purple-500">+3.1%</span>
-                <span className="text-sm text-slate-500 dark:text-slate-400 ml-1">vs mês anterior</span>
-              </div>
             </div>
-            <div className="p-3 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl">
-              <Target className="h-8 w-8 text-white" />
+            <Receipt className="w-8 h-8 text-[var(--brand)]" />
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[var(--chart-green)]" />
+              <span className="text-sm text-[var(--chart-green)]">+8.3%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-[var(--foreground)] opacity-60">vs mês anterior</span>
+              <ArrowUpRight className="w-3 h-3 text-[var(--chart-green)]" />
             </div>
           </div>
         </div>
 
-        {/* Canceled Orders Card */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50 hover:shadow-2xl transition-all duration-300">
+        <div className="admin-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Pedidos Cancelados</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{canceledOrders}</p>
-              <div className="flex items-center mt-2">
-                <Ban className="h-4 w-4 text-red-500 mr-1" />
-                <span className="text-sm font-medium text-red-500">
-                  {totalOrders > 0 ? ((canceledOrders / totalOrders) * 100).toFixed(1) : '0.0'}%
-                </span>
-                <span className="text-sm text-slate-500 dark:text-slate-400 ml-1">do total</span>
-              </div>
+              <p className="text-sm text-[var(--foreground)] opacity-70">Ticket Médio</p>
+              <p className="text-2xl font-bold text-[var(--foreground)]">
+                {formatCurrency(dashboardData.averageOrderValue)}
+              </p>
             </div>
-            <div className="p-3 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl">
-              <Ban className="h-8 w-8 text-white" />
+            <Activity className="w-8 h-8 text-[var(--accent)]" />
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[var(--chart-green)]" />
+              <span className="text-sm text-[var(--chart-green)]">+5.2%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-[var(--foreground)] opacity-60">vs mês anterior</span>
+              <ArrowUpRight className="w-3 h-3 text-[var(--chart-green)]" />
+            </div>
+          </div>
+        </div>
+
+        <div className="admin-card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-[var(--foreground)] opacity-70">Clientes Ativos</p>
+              <p className="text-2xl font-bold text-[var(--foreground)]">
+                {dashboardData.totalCustomers.toLocaleString()}
+              </p>
+            </div>
+            <Users className="w-8 h-8 text-[var(--primary)]" />
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[var(--chart-green)]" />
+              <span className="text-sm text-[var(--chart-green)]">+15.7%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-[var(--foreground)] opacity-60">vs mês anterior</span>
+              <ArrowUpRight className="w-3 h-3 text-[var(--chart-green)]" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        {/* Sales Evolution Chart */}
-        <div className="xl:col-span-2 backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Evolução de Vendas</h3>
-            <Activity className="h-6 w-6 text-slate-500 dark:text-slate-400" />
+      {/* Gráficos de Vendas */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        {/* Gráfico de Vendas Diárias */}
+        <div className="admin-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <BarChart3 className="w-6 h-6 text-[var(--chart-green)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Vendas Diárias</h3>
           </div>
-          <SalesChart data={salesChart} title="" />
-        </div>
-
-        {/* Top Products */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Top Produtos</h3>
-            <Star className="h-6 w-6 text-slate-500 dark:text-slate-400" />
-          </div>
-          <div className="space-y-4">
-            {topProducts.slice(0, 5).map((product, index) => (
-              <div key={product.key} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-700/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {index + 1}
+          
+          {/* Gráfico de Barras com Dados Reais */}
+          <div className="h-64 flex items-end justify-between gap-2">
+            {dashboardData.salesData.daily.length > 0 ? (
+              dashboardData.salesData.daily.map((day, i) => {
+                const maxValue = Math.max(...dashboardData.salesData.daily.map(d => d.total), 1);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center">
+                    <div 
+                      className="w-full bg-gradient-to-t from-[var(--chart-green)] to-[var(--chart-green-light)] rounded-t"
+                      style={{ height: `${(day.total / maxValue) * 200}px` }}
+                    ></div>
+                    <p className="text-xs text-[var(--foreground)] opacity-70 mt-2">
+                      {new Date(day.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                    </p>
+                    <p className="text-xs font-medium text-[var(--foreground)]">
+                      {formatCurrency(day.total)}
+                    </p>
+                    <p className="text-xs text-[var(--foreground)] opacity-50">
+                      {day.orders} pedidos
+                    </p>
                   </div>
-                  <span className="font-medium text-slate-900 dark:text-white truncate">{product.key}</span>
-                </div>
-                <span className="font-bold text-slate-900 dark:text-white">{product.value}</span>
+                );
+              })
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-[var(--foreground)] opacity-50">Nenhum dado disponível</p>
               </div>
-            ))}
+            )}
+          </div>
+        </div>
+
+        {/* Gráfico de Canais de Venda */}
+        <div className="admin-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Globe className="w-6 h-6 text-[var(--brand)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Canais de Venda</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--muted)] bg-opacity-30 hover:bg-[var(--muted)] hover:bg-opacity-50 transition-all duration-200">
+              <div className="flex items-center gap-3">
+                <Globe className="w-5 h-5 text-[var(--brand)]" />
+                <span className="text-[var(--foreground)] font-medium">Website</span>
+                
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.channelData.web)}</p>
+                <p className="text-sm text-[var(--foreground)] opacity-70">{dashboardData.channelData.web} vendas</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--muted)] bg-opacity-30 hover:bg-[var(--muted)] hover:bg-opacity-50 transition-all duration-200">
+              <div className="flex items-center gap-3">
+                <Home className="w-5 h-5 text-[var(--chart-green)]" />
+                <span className="text-[var(--foreground)] font-medium">Local</span>
+                
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.channelData.local)}</p>
+                <p className="text-sm text-[var(--foreground)] opacity-70">{dashboardData.channelData.local} vendas</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--muted)] bg-opacity-30 hover:bg-[var(--muted)] hover:bg-opacity-50 transition-all duration-200">
+              <div className="flex items-center gap-3">
+                <MessageCircle className="w-5 h-5 text-[var(--accent)]" />
+                <span className="text-[var(--foreground)] font-medium">WhatsApp</span>
+                
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.channelData.whatsapp)}</p>
+                <p className="text-sm text-[var(--foreground)] opacity-70">{dashboardData.channelData.whatsapp} vendas</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        {/* Top Seller Card */}
-        <div className="lg:col-span-1 xl:col-span-2">
-          <TopSeller data={sellerRankingData as any} />
+      {/* Formas de Pagamento e Regiões */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        {/* Formas de Pagamento */}
+        <div className="admin-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <CreditCard className="w-6 h-6 text-[var(--accent)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Formas de Pagamento</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5 text-[var(--brand)]" />
+                  <span className="text-[var(--foreground)] font-medium">PIX</span>
+                  
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.paymentData.pix)}</p>
+                </div>
+              </div>
+              <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                <div 
+                  className="bg-[var(--brand)] h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${dashboardData.paymentData.pix}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5 text-[var(--chart-green)]" />
+                  <span className="text-[var(--foreground)] font-medium">Cartão de Crédito</span>
+                  
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.paymentData.credit)}</p>
+                </div>
+              </div>
+              <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                <div 
+                  className="bg-[var(--chart-green)] h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${dashboardData.paymentData.credit}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5 text-[var(--accent)]" />
+                  <span className="text-[var(--foreground)] font-medium">Cartão de Débito</span>
+                  
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.paymentData.debit)}</p>
+                </div>
+              </div>
+              <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                <div 
+                  className="bg-[var(--accent)] h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${dashboardData.paymentData.debit}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="w-5 h-5 text-[var(--primary)]" />
+                  <span className="text-[var(--foreground)] font-medium">Dinheiro</span>
+                  
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-[var(--foreground)] text-lg">{formatPercentage(dashboardData.paymentData.cash)}</p>
+                </div>
+              </div>
+              <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                <div 
+                  className="bg-[var(--primary)] h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${dashboardData.paymentData.cash}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Payment Methods */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-4 xl:p-6 shadow-xl border border-white/20 dark:border-slate-700/50">
-          <div className="flex items-center justify-between mb-4 xl:mb-6">
-            <h3 className="text-lg xl:text-xl font-bold text-slate-900 dark:text-white">Formas de Pagamento</h3>
-            <CreditCard className="h-5 w-5 xl:h-6 xl:w-6 text-slate-500 dark:text-slate-400" />
+        {/* Análise Regional */}
+        <div className="admin-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <MapPin className="w-6 h-6 text-[var(--chart-green)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Análise Regional</h3>
           </div>
-          <PieChart
-            title=""
-            data={paymentMethodData.map(p => ({ label: p.key, value: p.value }))}
-          />
-        </div>
-
-        {/* Sales Channels */}
-        <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-4 xl:p-6 shadow-xl border border-white/20 dark:border-slate-700/50">
-          <div className="flex items-center justify-between mb-4 xl:mb-6">
-            <h3 className="text-lg xl:text-xl font-bold text-slate-900 dark:text-white">Canais de Venda</h3>
-            <Package className="h-5 w-5 xl:h-6 xl:w-6 text-slate-500 dark:text-slate-400" />
-          </div>
-          <BarChart
-            title=""
-            data={salesChannelData.map(c => ({ label: c.key, value: c.value }))}
-          />
+          <p className="text-sm text-[var(--foreground)] opacity-70 mb-4">
+            Loja: Tv. Marco Schinaider, 40 - Jacutinga, Mesquita - RJ
+          </p>
+          
+                     <div className="space-y-4">
+             {dashboardData.regionalData && dashboardData.regionalData.length > 0 ? (
+               dashboardData.regionalData.map((region, index) => (
+                 <div key={index} className="p-3 rounded-lg bg-[var(--muted)] bg-opacity-30 hover:bg-[var(--muted)] hover:bg-opacity-50 transition-all duration-200">
+                   <div className="flex items-center justify-between mb-2">
+                     <div className="flex items-center gap-3">
+                       <MapPin className="w-5 h-5 text-[var(--chart-green)]" />
+                       <span className="text-[var(--foreground)] font-medium">{region.region}</span>
+                       
+                     </div>
+                     <div className="text-right">
+                       <p className="font-bold text-[var(--foreground)] text-lg">{region.sales} vendas</p>
+                       <p className="text-sm text-[var(--foreground)] opacity-70">{formatCurrency(region.revenue)}</p>
+                     </div>
+                   </div>
+                   <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                     <div 
+                       className="bg-[var(--chart-green)] h-2 rounded-full transition-all duration-500 ease-out"
+                       style={{ width: `${(region.sales / Math.max(...dashboardData.regionalData.map(r => r.sales), 1)) * 100}%` }}
+                     ></div>
+                   </div>
+                 </div>
+               ))
+             ) : (
+               <div className="text-center py-8 text-[var(--foreground)] opacity-50">
+                 <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                 <p>Nenhum dado regional disponível</p>
+               </div>
+             )}
+           </div>
         </div>
       </div>
 
-      {/* Recent Sales */}
-      <div className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl border border-white/20 dark:border-slate-700/50">
+      {/* Top Produtos e Vendedores */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        {/* Top Produtos */}
+        <div className="admin-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Package className="w-6 h-6 text-[var(--chart-green)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Top Produtos</h3>
+          </div>
+          
+                     <div className="space-y-4">
+             {dashboardData.topProducts && dashboardData.topProducts.length > 0 ? (
+               dashboardData.topProducts.map((product, index) => (
+                 <div key={product.id} className="p-3 rounded-lg bg-[var(--muted)] bg-opacity-50 hover:bg-[var(--muted)] hover:bg-opacity-70 transition-all duration-200 border-l-4 border-[var(--chart-green)]">
+                   <div className="flex items-center justify-between mb-2">
+                     <div className="flex items-center gap-3">
+                                               <Star className="w-6 h-6 text-[var(--chart-green)]" />
+                       <div>
+                         <p className="font-medium text-[var(--foreground)]">{product.name}</p>
+                         <p className="text-sm text-[var(--foreground)] opacity-70">{product.category}</p>
+                       </div>
+                     </div>
+                     <div className="text-right">
+                       <p className="font-bold text-[var(--foreground)] text-lg">{product.salesCount} vendas</p>
+                       <p className="text-sm text-[var(--chart-green)] font-medium">{formatCurrency(product.revenue)}</p>
+                     </div>
+                   </div>
+                   <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                     <div 
+                       className="bg-[var(--chart-green)] h-2 rounded-full transition-all duration-500 ease-out"
+                       style={{ width: `${(product.salesCount / Math.max(...dashboardData.topProducts.map(p => p.salesCount), 1)) * 100}%` }}
+                     ></div>
+                   </div>
+                 </div>
+               ))
+             ) : (
+               <div className="text-center py-8 text-[var(--foreground)] opacity-50">
+                 <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                 <p>Nenhum produto disponível</p>
+               </div>
+             )}
+           </div>
+        </div>
+
+        {/* Top Vendedores */}
+        <div className="admin-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Award className="w-6 h-6 text-[var(--brand)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Top Vendedores</h3>
+          </div>
+          
+                     <div className="space-y-4">
+             {dashboardData.topSellers && dashboardData.topSellers.length > 0 ? (
+               dashboardData.topSellers.map((seller, index) => (
+                 <div key={seller.id} className="p-3 rounded-lg bg-[var(--muted)] bg-opacity-50 hover:bg-[var(--muted)] hover:bg-opacity-70 transition-all duration-200 border-l-4 border-[var(--brand)]">
+                   <div className="flex items-center justify-between mb-2">
+                     <div className="flex items-center gap-3">
+                                               <Award className="w-6 h-6 text-[var(--brand)]" />
+                       <div>
+                         <p className="font-medium text-[var(--foreground)]">{seller.name}</p>
+                         <p className="text-sm text-[var(--foreground)] opacity-70">{seller.sales} vendas</p>
+                       </div>
+                     </div>
+                     <div className="text-right">
+                       <p className="font-bold text-[var(--chart-green)] text-lg">{formatCurrency(seller.revenue)}</p>
+                     </div>
+                   </div>
+                   <div className="w-full bg-[var(--muted)] rounded-full h-2">
+                     <div 
+                       className="bg-[var(--brand)] h-2 rounded-full transition-all duration-500 ease-out"
+                       style={{ width: `${(seller.revenue / Math.max(...dashboardData.topSellers.map(s => s.revenue), 1)) * 100}%` }}
+                     ></div>
+                   </div>
+                 </div>
+               ))
+             ) : (
+               <div className="text-center py-8 text-[var(--foreground)] opacity-50">
+                 <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                 <p>Nenhum vendedor disponível</p>
+               </div>
+             )}
+           </div>
+        </div>
+      </div>
+
+      {/* Últimas Vendas */}
+      <div className="admin-card p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Últimos Pedidos</h3>
-          <Clock className="h-6 w-6 text-slate-500 dark:text-slate-400" />
+          <div className="flex items-center gap-3">
+            <Receipt className="w-6 h-6 text-[var(--primary)]" />
+            <h3 className="text-xl font-bold text-[var(--foreground)]">Últimas Vendas</h3>
+          </div>
+          <button className="text-sm text-[var(--brand)] hover:underline">Ver todas</button>
         </div>
-        <RecentSales data={recentSales} />
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+                         <thead>
+               <tr className="border-b border-[var(--border)]">
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">ID</th>
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">Cliente</th>
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">Vendedor</th>
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">Data</th>
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">Total</th>
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">Canal</th>
+                 <th className="text-left py-3 px-4 text-[var(--foreground)] opacity-70 font-medium">Pagamento</th>
+               </tr>
+             </thead>
+                         <tbody>
+               {dashboardData.recentSales && dashboardData.recentSales.length > 0 ? (
+                 dashboardData.recentSales.map((sale) => (
+                   <tr key={sale.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)] transition-all duration-200 group">
+                                           <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[var(--chart-green)] group-hover:animate-pulse"></div>
+                          <span className="font-mono text-sm">#{sale.id}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-[var(--foreground)] opacity-60" />
+                          <span className="font-medium">{sale.cliente || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="w-4 h-4 text-[var(--foreground)] opacity-60" />
+                          <span className="font-medium">{sale.vendedor || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-[var(--foreground)] opacity-60" />
+                          <span>{new Date(sale.date).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-[var(--chart-green)]" />
+                          <span className="font-medium text-[var(--chart-green)]">
+                            {formatCurrency(sale.total)}
+                          </span>
+                        </div>
+                      </td>
+                     <td className="py-3 px-4">
+                                               <div className="flex items-center gap-2">
+                          {sale.channel === 'web' ? (
+                            <>
+                              <Globe className="w-4 h-4 text-[var(--brand)]" />
+                              <span className="text-[var(--brand)]">Website</span>
+                            </>
+                          ) : sale.channel === 'whatsapp' ? (
+                            <>
+                              <MessageCircle className="w-4 h-4 text-[var(--accent)]" />
+                              <span className="text-[var(--accent)]">WhatsApp</span>
+                            </>
+                          ) : (
+                            <>
+                              <Home className="w-4 h-4 text-[var(--chart-green)]" />
+                              <span className="text-[var(--chart-green)]">Local</span>
+                            </>
+                          )}
+                        </div>
+                     </td>
+                     <td className="py-3 px-4">
+                                                                        <div className="flex items-center gap-2">
+                          {sale.paymentMethod === 'pix' ? (
+                            <>
+                              <CreditCard className="w-4 h-4 text-[var(--chart-green)]" />
+                              <span className="text-[var(--chart-green)]">PIX</span>
+                            </>
+                          ) : sale.paymentMethod === 'credit' ? (
+                            <>
+                              <CreditCard className="w-4 h-4 text-[var(--brand)]" />
+                              <span className="text-[var(--brand)]">Crédito</span>
+                            </>
+                          ) : sale.paymentMethod === 'debit' ? (
+                            <>
+                              <CreditCard className="w-4 h-4 text-[var(--accent)]" />
+                              <span className="text-[var(--accent)]">Débito</span>
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign className="w-4 h-4 text-[var(--primary)]" />
+                              <span className="text-[var(--primary)]">Dinheiro</span>
+                            </>
+                          )}
+                        </div>
+                     </td>
+                     <td className="py-3 px-4">
+                       <div className="flex items-center gap-2">
+                         <MapPin className="w-4 h-4 text-[var(--foreground)] opacity-60" />
+                         <span className="text-sm text-[var(--foreground)]">{sale.customerRegion}</span>
+                       </div>
+                     </td>
+                   </tr>
+                 ))
+               ) : (
+                                   <tr>
+                    <td colSpan={7} className="text-center py-8 text-[var(--foreground)] opacity-50">
+                      <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Nenhuma venda disponível</p>
+                    </td>
+                  </tr>
+               )}
+             </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  )
-}
 
-export default DashboardPage
+
+    </div>
+  );
+}

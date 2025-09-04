@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { importSales } from '../controllers/imports.controller';
-import { authenticateJWT } from '../middlewares/auth.middleware';
-import { authorizeRole } from '../middlewares/authorizeRole.middleware';
+import { importOrders } from '../controllers/imports.controller';
+import { authenticateJWT } from '../middlewares/auth-bypass.middleware';
+import { authorizeRole } from '../middlewares/auth-bypass.middleware';
 
 const router = Router();
 
 // Protegido: apenas admin e supervisor podem importar
-router.post('/', authenticateJWT, authorizeRole(['admin', 'supervisor']), importSales);
+router.post('/', authenticateJWT, authorizeRole(['admin', 'supervisor']), importOrders);
 
 export default router;

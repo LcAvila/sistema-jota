@@ -28,21 +28,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (raw) {
       try { setSession(JSON.parse(raw)); } catch {}
     }
-    // Temporary bypass for authentication while backend is unstable.
-    // Enable by setting NEXT_PUBLIC_BYPASS_AUTH=true in .env.local
-    // This will create a mock admin session so protected pages render.
-    if (!raw && process.env.NEXT_PUBLIC_BYPASS_AUTH === "true") {
-      const mock: Session = {
-        userId: 0,
-        name: "Dev Bypass",
-        role: "supervisor",
-        token: "dev-bypass",
-        email: "bypass@local",
-        storeId: 1,
-      };
-      setSession(mock);
-      if (typeof window !== "undefined") localStorage.setItem("session", JSON.stringify(mock));
-    }
   }, []);
 
   const value = useMemo(() => ({

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@/store/session";
 import { useTheme } from "@/store/theme";
+import { hasRole } from "@/lib/auth-bypass";
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { session, login, logout } = useSession();
@@ -12,20 +13,16 @@ function Guard({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
 
   useEffect(() => {
-    // Se bypass estiver ativo, garanta uma sessão mock e não redirecione
-    if (!session && process.env.NEXT_PUBLIC_BYPASS_AUTH === "true") {
-      const mock = {
-        userId: 0,
-        name: "Dev Bypass",
-        role: "supervisor" as const,
-        token: "dev-bypass",
-        email: "bypass@local",
-        storeId: 1,
-      };
-      login(mock);
-      return; // não redireciona
+    if (!session) {
+      router.replace("/login");
+      return;
     }
-    if (!session) router.replace("/login");
+    
+    // Verifica se o usuário tem permissão para acessar o admin
+    if (!hasRole(["admin", "supervisor"], session.role)) {
+      router.replace("/painel");
+      return;
+    }
   }, [session, router]);
 
   const Icons = {
@@ -75,8 +72,8 @@ function Guard({ children }: { children: React.ReactNode }) {
     ),
     settings: (cls = "") => (
       <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09c.69 0 1.3-.4 1.51-1a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 4.3l.06.06c.46.46 1.12.6 1.71.39A1.65 1.65 0 0 0 10.33 3.2V3a2 2 0 1 1 4 0v.09c0 .69.4 1.3 1 1.51.59.21 1.25.07 1.71-.39l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.46.46-.6 1.12-.39 1.71.21.6.82 1 1.51 1H21a2 2 0 1 1 0 4h-.09c-.69 0-1.3.4-1.51 1z"/>
+        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 1 0 0 6z"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09c.69 0 1.3-.4 1.51-1a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 7.04-2.83l.06.06c.46.46 1.12.6 1.71.39A1.65 1.65 0 0 0 10.33 3.2V3a2 2 0 1 1 4 0v.09c0 .69.4 1.3 1 1.51.59.21 1.25.07 1.71-.39l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.46.46-.6 1.12-.39 1.71.21.6.82 1 1.51 1H21a2 2 0 1 1 0 4h-.09c-.69 0-1.3.4-1.51 1z"/>
       </svg>
     ),
     sun: (cls = "") => (
@@ -101,13 +98,13 @@ function Guard({ children }: { children: React.ReactNode }) {
   ];
 
   const [collapsed, setCollapsed] = useState(false);
-  if (!session) return <div className="p-4 text-slate-600">Redirecionando...</div>;
+  if (!session) return <div className="p-4 text-[var(--foreground)]">Redirecionando...</div>;
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <div className="grid grid-cols-1 md:grid-cols-[var(--sb)_1fr] min-h-screen" style={{ ['--sb' as any]: collapsed ? '64px' : '260px' }}>
         {/* Sidebar */}
-        <aside className={`border-r border-[var(--border)] bg-[var(--card)] p-2 md:p-3 flex md:flex-col gap-3 md:gap-4 sticky top-0 z-10 transition-all duration-200 h-[100dvh] overflow-y-auto overflow-x-hidden`}>
+        <aside className={`admin-sidebar p-2 md:p-3 flex md:flex-col gap-3 md:gap-4 sticky top-0 z-10 transition-all duration-200 h-[100dvh] overflow-y-auto overflow-x-hidden`}>
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} md:${collapsed ? 'items-center' : 'items-start'} gap-2`}>
             <Link href="/admin" className={`flex items-center gap-2 ${collapsed ? 'justify-center' : ''}`}>
               <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--muted)]`}>
@@ -129,7 +126,7 @@ function Guard({ children }: { children: React.ReactNode }) {
                   key={n.href}
                   href={n.href}
                   title={collapsed ? n.label : undefined}
-                  className={`px-2 py-2 rounded border border-transparent hover:border-[var(--border)] flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2 transition-colors ${active ? 'bg-[var(--muted)] font-semibold text-[var(--brand)]' : ''}`}
+                  className={`px-2 py-2 rounded border border-transparent hover:border-[var(--border)] flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2 transition-colors ${active ? 'bg-[var(--brand)] font-semibold text-white' : ''}`}
                 >
                   <span className={`flex items-center gap-2 ${collapsed ? '' : 'min-w-0'}`}>
                     {n.icon}
@@ -182,7 +179,7 @@ function Topbar() {
   const { session, logout } = useSession();
   return (
     <div className="md:hidden mb-4 flex items-center justify-between">
-      <div className="text-sm text-slate-500">{session?.name} • {session?.role}</div>
+      <div className="text-sm text-[var(--foreground)] opacity-60">{session?.name} • {session?.role}</div>
       <div className="flex items-center gap-2">
         <button onClick={toggle} className="px-3 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)] text-sm">
           {theme === 'dark' ? '☀️' : '🌙'}
@@ -192,7 +189,7 @@ function Topbar() {
     </div>
   );
 }
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return <Guard>{children}</Guard>;
 }
+

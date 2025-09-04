@@ -66,7 +66,6 @@ export default function ContactSection() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Telefones</h4>
-                    <p className="text-gray-600">(21) 9801-4824</p>
                     <p className="text-gray-600">(21) 99801-4824</p>
                   </div>
                 </div>

@@ -1,162 +1,120 @@
 import { Request, Response } from 'express';
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 export const getDashboardFilterOptions = async (req: Request, res: Response) => {
   try {
-    const sellers = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
-
-    const paymentMethods = await prisma.paymentMethod.findMany({
-      where: { active: true },
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
-
-    // O canal de venda ainda não está no banco, então será uma lista estática por enquanto.
-    const channels = [
-      { id: 'app', name: 'App' },
-      { id: 'pos', name: 'Balcão' },
-      { id: 'delivery', name: 'Delivery' },
+    // Mock data - replace with Supabase integration
+    const sellers = [
+      { id: 1, name: 'Vendedor 1' },
+      { id: 2, name: 'Vendedor 2' }
     ];
 
-    res.json({ sellers, paymentMethods, channels });
+    const paymentMethods = [
+      { id: 1, name: 'Pix' },
+      { id: 2, name: 'Cartão de Crédito' },
+      { id: 3, name: 'Dinheiro' }
+    ];
+
+    const channels = [
+      { id: 'online', name: 'Online' },
+      { id: 'loja', name: 'Loja Física' },
+      { id: 'delivery', name: 'Delivery' }
+    ];
+
+    res.json({
+      sellers,
+      paymentMethods,
+      channels
+    });
   } catch (error) {
-    console.error('Failed to fetch dashboard filter options:', error);
-    res.status(500).json({ message: 'Failed to fetch filter options' });
+    console.error('Erro ao buscar opções de filtro:', error);
+    res.status(500).json({ 
+      message: 'Erro interno do servidor',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
   }
 };
 
-export const getDashboardMetrics = async (req: Request, res: Response) => {
-  const { from, to, sellerId, paymentMethod } = req.query;
-
-  const where: Prisma.OrderWhereInput = {};
-  const dateFilter: Prisma.DateTimeFilter = {};
-
-  if (from) {
-    dateFilter.gte = new Date(from as string);
-  }
-  if (to) {
-    dateFilter.lte = new Date(to as string);
-  }
-  if (from || to) {
-    where.createdAt = dateFilter;
-  }
-  if (sellerId) {
-    where.sellerId = parseInt(sellerId as string, 10);
-  }
-
-  // Filtro específico para formas de pagamento
-  const paymentWhere: Prisma.OrderPaymentWhereInput = {};
-  if (paymentMethod) {
-    paymentWhere.paymentMethod = { name: paymentMethod as string };
-    where.orderPayments = {
-      some: paymentWhere,
-    };
-  }
-
+export const getDashboardData = async (req: Request, res: Response) => {
   try {
-    // 1. KPIs Principais
-    const completedOrdersWhere = { ...where, status: 'Concluído' };
-    const totalRevenueResult = await prisma.order.aggregate({
-      _sum: { total: true },
-      where: completedOrdersWhere,
-    });
-    const totalOrders = await prisma.order.count({ where: completedOrdersWhere });
-    const canceledOrders = await prisma.order.count({ where: { ...where, status: 'Cancelado' } });
+    const { startDate, endDate, sellerId, paymentMethodId, channel } = req.query;
 
-    const totalRevenue = totalRevenueResult._sum.total?.toNumber() || 0;
-    const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    // Mock data - replace with Supabase integration
+    const mockData = {
+      totalSales: 15000.50,
+      totalOrders: 45,
+      averageOrderValue: 333.34,
+      topProducts: [
+        { id: 1, name: 'Produto A', quantity: 25, revenue: 2500.00 },
+        { id: 2, name: 'Produto B', quantity: 20, revenue: 2000.00 },
+        { id: 3, name: 'Produto C', quantity: 15, revenue: 1500.00 }
+      ],
+      salesByDay: [
+        { date: '2024-01-01', sales: 500.00, orders: 2 },
+        { date: '2024-01-02', sales: 750.00, orders: 3 },
+        { date: '2024-01-03', sales: 1200.00, orders: 4 }
+      ],
+      salesBySeller: [
+        { sellerId: 1, sellerName: 'Vendedor 1', sales: 8000.00, orders: 25 },
+        { sellerId: 2, sellerName: 'Vendedor 2', sales: 7000.50, orders: 20 }
+      ],
+      paymentMethodBreakdown: [
+        { method: 'Pix', amount: 6000.00, percentage: 40 },
+        { method: 'Cartão de Crédito', amount: 4500.50, percentage: 30 },
+        { method: 'Dinheiro', amount: 4500.00, percentage: 30 }
+      ]
+    };
 
-    // 2. Top 5 Produtos
-    const topProductsResult = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      _sum: { qty: true },
-      where: { order: completedOrdersWhere },
-      orderBy: { _sum: { qty: 'desc' } },
-      take: 5,
-    });
-    const productIds = topProductsResult.map(p => p.productId);
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-    const topProducts = topProductsResult.map(item => {
-      const product = products.find(p => p.id === item.productId);
-      return { key: product?.name || 'Produto não encontrado', value: item._sum.qty || 0 };
-    });
-
-    // 3. Formas de Pagamento
-    const paymentMethodsResult = await prisma.orderPayment.groupBy({
-        by: ['paymentMethodId'],
-        _count: { id: true },
-        where: { order: completedOrdersWhere },
-    });
-    const paymentMethodIds = paymentMethodsResult.map(p => p.paymentMethodId);
-    const paymentMethods = await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } });
-    const paymentMethodData = paymentMethodsResult.map(item => {
-        const paymentMethod = paymentMethods.find(p => p.id === item.paymentMethodId);
-        return { key: paymentMethod?.name || 'Não identificado', value: item._count.id };
-    });
-
-    // 4. Ranking de Vendedores
-    const sellerRankingResult = await prisma.order.groupBy({
-      by: ['sellerId'],
-      _sum: { total: true },
-      where: completedOrdersWhere,
-      orderBy: { _sum: { total: 'desc' } },
-      take: 5,
-    });
-    const sellerIds = sellerRankingResult.map(s => s.sellerId);
-    const sellers = await prisma.user.findMany({ where: { id: { in: sellerIds } } });
-    const sellerRankingData = sellerRankingResult.map(item => {
-      const seller = sellers.find(s => s.id === item.sellerId);
-      return { key: seller?.name || 'Vendedor não encontrado', value: item._sum.total?.toNumber() || 0 };
-    });
-
-    // 5. Vendas Recentes
-    const recentSales = await prisma.order.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      include: {
-        client: { select: { id: true, name: true } },
-        seller: { select: { id: true, name: true } },
-        orderPayments: { include: { paymentMethod: true } },
-      },
-    });
-
-    res.status(200).json({
-      totalRevenue,
-      totalOrders,
-      averageTicket,
-      canceledOrders,
-      topProducts,
-      paymentMethodData,
-      sellerRankingData,
-      recentSales: recentSales.map(sale => ({
-        ...sale,
-        // O campo 'channel' não existe no schema.prisma atual.
-        channel: 'N/A',
-        payments: sale.orderPayments.map(p => ({ method: p.paymentMethod.name, amount: p.amount.toNumber() }))
-      })),
-      // O gráfico de evolução de vendas e vendas por canal precisam ser implementados.
-      salesChart: [], 
-      salesChannelData: [],
-    });
-
+    res.json(mockData);
   } catch (error) {
-    console.error('Error fetching dashboard metrics:', error);
-    res.status(500).json({ message: 'Erro ao buscar métricas do dashboard' });
+    console.error('Erro ao buscar dados do dashboard:', error);
+    res.status(500).json({ 
+      message: 'Erro interno do servidor',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+};
+
+export const getSalesReport = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate, format = 'json' } = req.query;
+
+    // Mock data - replace with Supabase integration
+    const mockReport = {
+      period: {
+        startDate: startDate || '2024-01-01',
+        endDate: endDate || '2024-01-31'
+      },
+      summary: {
+        totalSales: 25000.00,
+        totalOrders: 75,
+        averageOrderValue: 333.33,
+        uniqueCustomers: 50
+      },
+      dailyBreakdown: [
+        { date: '2024-01-01', sales: 500.00, orders: 2, customers: 2 },
+        { date: '2024-01-02', sales: 750.00, orders: 3, customers: 3 },
+        { date: '2024-01-03', sales: 1200.00, orders: 4, customers: 4 }
+      ],
+      topProducts: [
+        { productId: 1, productName: 'Produto A', quantity: 50, revenue: 5000.00 },
+        { productId: 2, productName: 'Produto B', quantity: 40, revenue: 4000.00 },
+        { productId: 3, productName: 'Produto C', quantity: 30, revenue: 3000.00 }
+      ]
+    };
+
+    if (format === 'csv') {
+      // In a real implementation, this would generate CSV format
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="sales-report.csv"');
+      res.send('Date,Sales,Orders,Customers\n2024-01-01,500.00,2,2\n');
+    } else {
+      res.json(mockReport);
+    }
+  } catch (error) {
+    console.error('Erro ao gerar relatório de vendas:', error);
+    res.status(500).json({ 
+      message: 'Erro interno do servidor',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
   }
 };

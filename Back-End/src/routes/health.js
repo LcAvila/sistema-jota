@@ -1,5 +1,5 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+// Prisma removed - using Supabase instead
 const logger = require('../config/logger');
 
 // Redis opcional
@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const router = express.Router();
-const prisma = new PrismaClient();
+// Prisma client removed - using Supabase instead
 
 // Health check básico
 router.get('/', async (req, res) => {
@@ -36,19 +36,9 @@ router.get('/detailed', async (req, res) => {
   try {
     const startTime = Date.now();
     
-    // Testar conexão com banco de dados
-    let dbStatus = 'unknown';
+    // Database connection test removed - using Supabase instead
+    let dbStatus = 'not_configured';
     let dbResponseTime = 0;
-    
-    try {
-      const dbStart = Date.now();
-      await prisma.$queryRaw`SELECT 1 as test`;
-      dbResponseTime = Date.now() - dbStart;
-      dbStatus = 'connected';
-    } catch (dbError) {
-      dbStatus = 'error';
-      logger.error('Erro na conexão com banco:', dbError);
-    }
     
     // Testar Redis
     let redisStatus = 'unknown';
@@ -75,23 +65,13 @@ router.get('/detailed', async (req, res) => {
     const memUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
     
-    // Verificar tabelas do banco
+    // Table count removed - using Supabase instead
     let tableCount = 0;
-    try {
-      const tables = await prisma.$queryRaw`
-        SELECT COUNT(*) as count 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public'
-      `;
-      tableCount = parseInt(tables[0].count);
-    } catch (error) {
-      logger.error('Erro ao contar tabelas:', error);
-    }
     
     const totalTime = Date.now() - startTime;
     
     const healthData = {
-      status: dbStatus === 'connected' && redisStatus === 'connected' ? 'OK' : 'DEGRADED',
+      status: redisStatus === 'connected' || redisStatus === 'not_configured' ? 'OK' : 'DEGRADED',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',

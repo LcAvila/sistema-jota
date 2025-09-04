@@ -3,22 +3,29 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "@/store/theme";
-import { getUser, logout as doLogout } from "@/lib/auth";
+import { useSession } from "@/store/session";
+import { hasRole } from "@/lib/auth-bypass";
 
 function Guard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { session, logout } = useSession();
   const [unread, setUnread] = useState(0);
-  const user = getUser();
 
   // Proteção: somente vendedor
   useEffect(() => {
-    const role = user?.role || '';
-    if (!user || role !== 'seller') {
+    if (!session) {
       router.replace('/login');
+      return;
     }
-  }, [router, user]);
+    
+    // Verifica se o usuário tem permissão para acessar o painel
+    if (!hasRole(["seller"], session.role)) {
+      router.replace("/admin");
+      return;
+    }
+  }, [session, router]);
 
   const Icons = {
     logo: (cls = "") => (
@@ -91,7 +98,7 @@ function Guard({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   // Importante: manter hooks com mesma ordem em todas as renderizações.
   // Só retornamos após todos hooks terem sido registrados.
-  if (!user) return <div className="p-4 text-slate-600">Redirecionando...</div>;
+  if (!session) return <div className="p-4 text-slate-600">Redirecionando...</div>;
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -141,12 +148,12 @@ function Guard({ children }: { children: React.ReactNode }) {
             {!collapsed ? (
               <>
                 <div className="text-xs opacity-60">Logado como</div>
-                <div className="text-sm font-medium">{user.name}</div>
-                <div className="text-xs opacity-60">{user.role}</div>
-                <button onClick={() => { doLogout(); router.replace('/login'); }} className="mt-3 w-full text-sm px-3 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)] transition-colors">Sair</button>
+                <div className="text-sm font-medium">{session.name}</div>
+                <div className="text-xs opacity-60">{session.role}</div>
+                <button onClick={() => { logout(); router.replace('/login'); }} className="mt-3 w-full text-sm px-3 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)] transition-colors">Sair</button>
               </>
             ) : (
-              <button onClick={() => { doLogout(); router.replace('/login'); }} title="Sair" className="w-full flex items-center justify-center p-2 rounded border border-[var(--border)] hover:bg-[var(--muted)] transition-colors">⎋</button>
+              <button onClick={() => { logout(); router.replace('/login'); }} title="Sair" className="w-full flex items-center justify-center p-2 rounded border border-[var(--border)] hover:bg-[var(--muted)] transition-colors">⎋</button>
             )}
           </div>
         </aside>
@@ -155,12 +162,12 @@ function Guard({ children }: { children: React.ReactNode }) {
         <main className="p-4 md:p-6">
           {/* Topbar (mobile) */}
           <div className="md:hidden mb-4 flex items-center justify-between">
-            <div className="text-sm text-slate-500">{user.name} • {user.role}</div>
+            <div className="text-sm text-slate-500">{session.name} • {session.role}</div>
             <div className="flex items-center gap-2">
               <button onClick={toggle} className="px-3 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)] text-sm">
                 {theme === 'dark' ? '☀️' : '🌙'}
               </button>
-              <button onClick={() => { doLogout(); router.replace('/login'); }} className="text-sm px-3 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)]">Sair</button>
+              <button onClick={() => { logout(); router.replace('/login'); }} className="text-sm px-3 py-1.5 rounded border border-[var(--border)] hover:bg-[var(--muted)]">Sair</button>
             </div>
           </div>
           {children}

@@ -2,7 +2,7 @@ import { getToken } from '@/lib/auth';
 
 export type ApiFetchOptions = RequestInit & { auth?: boolean };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 function isPublicPath(path: string) {
   return path.startsWith('/public');

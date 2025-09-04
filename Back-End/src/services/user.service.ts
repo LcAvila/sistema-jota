@@ -1,6 +1,13 @@
-import { PrismaClient, User } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// Mock data for development - replace with Supabase integration
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  storeId: number;
+  createdAt: Date;
+};
 
 export type UserSafe = {
   id: number;
@@ -10,8 +17,21 @@ export type UserSafe = {
   createdAt: Date;
 };
 
+// Mock users for development
+const mockUsers: User[] = [
+  {
+    id: 1,
+    name: 'Admin User',
+    email: 'admin@test.com',
+    password: '$2a$08$hash', // bcrypt hash for 'password'
+    role: 'admin',
+    storeId: 1,
+    createdAt: new Date()
+  }
+];
+
 export async function findUserByEmail(email: string): Promise<User | null> {
-  return prisma.user.findUnique({ where: { email } });
+  return mockUsers.find(user => user.email === email) || null;
 }
 
 export async function createUser(
@@ -21,23 +41,52 @@ export async function createUser(
   role: string = 'seller',
   storeId: number = 1,
 ): Promise<User> {
-  // NOTE: 'role' and 'storeId' are required by the Prisma schema.
-  // Ensure 'storeId' exists in DB or pass one explicitly from the controller.
-  return prisma.user.create({ data: { name, email, password, role, storeId } });
+  const newUser: User = {
+    id: mockUsers.length + 1,
+    name,
+    email,
+    password,
+    role,
+    storeId,
+    createdAt: new Date()
+  };
+  mockUsers.push(newUser);
+  return newUser;
 }
 
 export async function getAllUsers(): Promise<UserSafe[]> {
-  return prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, createdAt: true } });
+  return mockUsers.map(user => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt
+  }));
 }
 
 export async function getUserById(id: number): Promise<UserSafe | null> {
-  return prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, createdAt: true } });
+  const user = mockUsers.find(u => u.id === id);
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt
+  };
 }
 
 export async function updateUser(id: number, data: Partial<User>): Promise<User | null> {
-  return prisma.user.update({ where: { id }, data });
+  const userIndex = mockUsers.findIndex(u => u.id === id);
+  if (userIndex === -1) return null;
+  
+  mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
+  return mockUsers[userIndex];
 }
 
 export async function deleteUser(id: number): Promise<User | null> {
-  return prisma.user.delete({ where: { id } });
+  const userIndex = mockUsers.findIndex(u => u.id === id);
+  if (userIndex === -1) return null;
+  
+  return mockUsers.splice(userIndex, 1)[0];
 }

@@ -1,25 +1,38 @@
 import { Request, Response } from 'express';
-import { PrismaClient, ReferenceType } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 // GET /api/stock/overview
 export const getOverview = async (req: Request, res: Response) => {
   try {
-    const products = await prisma.product.findMany({
-      where: { active: true },
-      select: ({ id: true, sku: true, code: true, name: true, stock: true, minStock: true, unit: true, barcode: true } as any)
-    });
+    // Mock data - replace with Supabase integration
+    const mockProducts = [
+      {
+        id: 1,
+        sku: 'PROD-001',
+        code: '001',
+        name: 'Produto A',
+        stock: 5,
+        minStock: 10,
+        unit: 'un',
+        barcode: '123456789',
+        belowMin: true
+      },
+      {
+        id: 2,
+        sku: 'PROD-002',
+        code: '002',
+        name: 'Produto B',
+        stock: 25,
+        minStock: 15,
+        unit: 'un',
+        barcode: '987654321',
+        belowMin: false
+      }
+    ];
 
-    const enriched = products.map(p => ({
-      ...p,
-      belowMin: p.minStock != null ? p.stock < p.minStock : false,
-    }));
+    const lowCount = mockProducts.filter(p => p.belowMin).length;
+    const totalSkus = mockProducts.length;
 
-    const lowCount = enriched.filter(p => p.belowMin).length;
-    const totalSkus = enriched.length;
-
-    res.json({ data: enriched, meta: { lowCount, totalSkus } });
+    res.json({ data: mockProducts, meta: { lowCount, totalSkus } });
   } catch (err: any) {
     res.status(500).json({ error: 'Erro ao carregar visão de estoque', details: err?.message });
   }
@@ -28,72 +41,108 @@ export const getOverview = async (req: Request, res: Response) => {
 // GET /api/stock/movements
 export const listMovements = async (req: Request, res: Response) => {
   try {
-    const { productId, type, referenceType, from, to, limit } = req.query as Record<string, string>;
-    const take = Math.min(Number(limit) || 100, 500);
+    // Mock data - replace with Supabase integration
+    const mockMovements = [
+      {
+        id: 1,
+        productId: 1,
+        qty: 10,
+        type: 'manual',
+        referenceId: null,
+        referenceType: 'manual',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        product: {
+          id: 1,
+          name: 'Produto A',
+          sku: 'PROD-001'
+        }
+      },
+      {
+        id: 2,
+        productId: 2,
+        qty: -5,
+        type: 'order',
+        referenceId: 1,
+        referenceType: 'order',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        product: {
+          id: 2,
+          name: 'Produto B',
+          sku: 'PROD-002'
+        }
+      }
+    ];
 
-    const where: any = {};
-    if (productId) where.productId = Number(productId);
-    if (type) where.type = String(type);
-    if (referenceType) where.referenceType = referenceType as ReferenceType;
-    if (from || to) {
-      where.createdAt = {} as any;
-      if (from) (where.createdAt as any).gte = new Date(from);
-      if (to) (where.createdAt as any).lte = new Date(to);
-    }
-
-    const rows = await prisma.stockMovement.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take,
-      include: { product: { select: { id: true, sku: true, name: true, unit: true } } },
-    });
-
-    res.json({ data: rows });
+    res.json(mockMovements);
   } catch (err: any) {
     res.status(500).json({ error: 'Erro ao listar movimentações', details: err?.message });
   }
 };
 
-// POST /api/stock/movements
-// body: { productId: number, qty: number, kind: 'in' | 'out', referenceType?: 'manual'|'adjustment'|'order', note?: string, referenceId?: number }
-export const createMovement = async (req: Request, res: Response) => {
+// POST /api/stock/adjust
+export const adjustStock = async (req: Request, res: Response) => {
   try {
-    const { productId, qty, kind, referenceType, note, referenceId } = req.body || {};
-    if (!productId || typeof qty !== 'number' || !kind) {
-      return res.status(400).json({ error: 'Parâmetros inválidos' });
+    const { productId, qty, reason } = req.body;
+
+    if (!productId || qty === undefined || qty === null) {
+      return res.status(400).json({ error: 'productId e qty são obrigatórios' });
     }
-    if (!['in', 'out'].includes(kind)) return res.status(400).json({ error: 'kind deve ser in ou out' });
 
-    const delta = kind === 'in' ? qty : -Math.abs(qty);
+    // Mock data - replace with Supabase integration
+    const mockMovement = {
+      id: Math.floor(Math.random() * 1000) + 1,
+      productId: Number(productId),
+      qty: Number(qty),
+      type: 'manual',
+      referenceId: null,
+      referenceType: 'manual',
+      reason: reason || 'Ajuste manual',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    const result = await prisma.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({ where: { id: Number(productId) } });
-      if (!product) throw new Error('Produto não encontrado');
-
-      const newStock = product.stock + delta;
-      if (newStock < 0) throw new Error('Estoque insuficiente para a saída');
-
-      const movement = await tx.stockMovement.create({
-        data: {
-          productId: Number(productId),
-          qty: Math.abs(qty),
-          type: kind,
-          referenceId: referenceId ? Number(referenceId) : null,
-          referenceType: referenceType as ReferenceType | undefined,
-          // opcionalmente poderíamos gravar note em outra tabela; aqui somente payload simples
-        }
-      });
-
-      await tx.product.update({
-        where: { id: Number(productId) },
-        data: { stock: newStock }
-      });
-
-      return { movement, newStock };
+    res.status(201).json({
+      message: 'Estoque ajustado com sucesso',
+      movement: mockMovement
     });
-
-    res.status(201).json({ ok: true, ...result });
   } catch (err: any) {
-    res.status(400).json({ error: err?.message || 'Falha ao criar movimentação' });
+    res.status(500).json({ error: 'Erro ao ajustar estoque', details: err?.message });
+  }
+};
+
+// GET /api/stock/product/:id/movements
+export const getProductMovements = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Mock data - replace with Supabase integration
+    const mockMovements = [
+      {
+        id: 1,
+        productId: Number(id),
+        qty: 10,
+        type: 'manual',
+        referenceId: null,
+        referenceType: 'manual',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 2,
+        productId: Number(id),
+        qty: -2,
+        type: 'order',
+        referenceId: 1,
+        referenceType: 'order',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    res.json(mockMovements);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Erro ao buscar movimentações do produto', details: err?.message });
   }
 };

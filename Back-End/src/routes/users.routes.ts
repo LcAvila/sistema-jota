@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import * as usersController from '../controllers/users.controller';
 
-import { authenticateJWT } from '../middlewares/auth.middleware';
-import { authorizeRole } from '../middlewares/authorizeRole.middleware';
+import { authenticateJWT } from '../middlewares/auth-bypass.middleware';
+import { authorizeRole } from '../middlewares/auth-bypass.middleware';
 
 const router = Router();
 

@@ -1,11 +1,13 @@
+// Carregar variáveis de ambiente primeiro
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+// Prisma removed - using Supabase instead
 const compression = require('compression');
 const helmet = require('helmet');
-require('dotenv').config();
 
 // Importar configurações e middlewares
 const logger = require('./config/logger');
@@ -26,7 +28,7 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-const prisma = new PrismaClient();
+// Prisma client removed - using Supabase instead
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -83,86 +85,29 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Conexão com banco de dados Neon Tech
 
-// Rota de login com validação e rate limiting
-app.post('/api/auth/login', validate('login'), async (req, res) => {
-  try {
-    const { email, password } = req.body;
+// Login agora é gerenciado pelo controller de autenticação
 
-    logger.info('Tentativa de login', { email, ip: req.ip });
-
-    // Buscar usuário no banco de dados
-    const user = await prisma.user.findUnique({
-      where: { email: email },
-      include: { store: true }
-    });
-
-    if (!user) {
-      logger.warn('Tentativa de login com email inexistente', { email, ip: req.ip });
-      return res.status(401).json({ message: 'Credenciais inválidas' });
-    }
-
-    // Verificar se o usuário está ativo
-    if (!user.active) {
-      logger.warn('Tentativa de login com usuário inativo', { email, ip: req.ip });
-      return res.status(401).json({ message: 'Usuário inativo' });
-    }
-
-    // Verificar senha
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      logger.warn('Tentativa de login com senha incorreta', { email, ip: req.ip });
-      return res.status(401).json({ message: 'Credenciais inválidas' });
-    }
-
-    // Gerar token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Retornar dados do usuário (sem senha)
-    const { password: _, ...userWithoutPassword } = user;
-    
-    logger.info('Login realizado com sucesso', { 
-      email, 
-      userId: user.id, 
-      role: user.role,
-      ip: req.ip 
-    });
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        storeId: user.storeId
-      }
-    });
-
-  } catch (error) {
-    logger.error('Erro no login:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
-});
-
-// Importar rotas
-const salesRoutes = require('./routes/sales');
-const productsRoutes = require('./routes/products');
-const stockRoutes = require('./routes/stock');
+// Importar rotas TypeScript (compiladas para JavaScript)
+const authRoutes = require('../dist/routes/auth.routes');
+const productsRoutes = require('../dist/routes/products.routes');
+const ordersRoutes = require('../dist/routes/orders.routes');
+const usersRoutes = require('../dist/routes/users.routes');
+const salesRoutes = require('../dist/routes/sales.routes');
+const stockRoutes = require('../dist/routes/stock.routes');
+const importsRoutes = require('../dist/routes/imports.routes');
+const publicRoutes = require('../dist/routes/public.routes');
+const dashboardRoutes = require('../dist/routes/dashboardRoutes');
 
 // Usar as rotas
-app.use('/api/sales', salesRoutes);
-app.use('/api/products', productsRoutes);
-app.use('/api/stock', stockRoutes);
-app.use('/api/public', salesRoutes);
-app.use('/api/dashboard', salesRoutes);
+app.use('/api/auth', authRoutes.default);
+app.use('/api/products', productsRoutes.default);
+app.use('/api/orders', ordersRoutes.default);
+app.use('/api/users', usersRoutes.default);
+app.use('/api/sales', salesRoutes.default);
+app.use('/api/stock', stockRoutes.default);
+app.use('/api/imports', importsRoutes.default);
+app.use('/api/public', publicRoutes.default);
+app.use('/api/dashboard', dashboardRoutes.default);
 
 // Middleware de autenticação
 const authenticateToken = (req, res, next) => {
@@ -182,32 +127,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Rota protegida de exemplo
-app.get('/api/user/profile', authenticateToken, async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      include: { store: true }
-    });
-    
-    if (!user) {
-      logger.warn('Perfil de usuário não encontrado', { userId: req.user.userId });
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
-    
-    const { password: _, ...userWithoutPassword } = user;
-    
-    logger.info('Perfil de usuário consultado', { 
-      userId: req.user.userId, 
-      email: req.user.email 
-    });
-    
-    res.json(userWithoutPassword);
-  } catch (error) {
-    logger.error('Erro ao buscar perfil:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
-});
+// Rota protegida de exemplo - agora gerenciada pelo controller de usuários
 
 // Importar rotas de health check
 const healthRoutes = require('./routes/health');
@@ -243,8 +163,8 @@ async function startServer() {
       console.log(`🔒 Segurança: Helmet, Rate Limiting, CORS configurado`);
       console.log(`📊 Monitoramento: Winston Logger, Performance Monitor`);
       console.log(`✅ Validação: Joi schemas implementados`);
-      console.log(`\n👤 Conectado ao banco de dados Neon Tech`);
-      console.log(`   Use as credenciais do banco de dados`);
+      console.log(`\n🗄️ Conectado ao Supabase`);
+      console.log(`   Sistema Jota - Backend integrado`);
     });
     
   } catch (error) {

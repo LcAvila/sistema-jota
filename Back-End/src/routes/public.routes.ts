@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { getRecentOrdersPublic, getKpisPublic } from '../controllers/public.controller';
+import { getRecentOrdersPublic, getPublicStats } from '../controllers/public.controller';
 
 const router = Router();
 
 router.get('/recent-orders', getRecentOrdersPublic);
-router.get('/kpis', getKpisPublic);
+router.get('/kpis', getPublicStats);
 
 export default router;

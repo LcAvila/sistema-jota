@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { getDashboardMetrics, getDashboardFilterOptions } from '../controllers/dashboardController';
+import { getDashboardFilterOptions, getDashboardData } from '../controllers/dashboardController';
 
 const router = Router();
 
-router.get('/', getDashboardMetrics);
+router.get('/', getDashboardData);
 router.get('/filters', getDashboardFilterOptions);
 
 export default router;

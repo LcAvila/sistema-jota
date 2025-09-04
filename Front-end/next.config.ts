@@ -20,7 +20,7 @@ const nextConfig: NextConfigWithTurbo = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://back-8jqwohmsc-lucas-avilas-projects.vercel.app/:path*',
+        destination: 'http://localhost:4000/api/:path*',
       },
     ];
   },
