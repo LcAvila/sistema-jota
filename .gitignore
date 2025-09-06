@@ -1,12 +1,13 @@
 # Dependencies
 node_modules/
-*/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Production builds
 .next/
+out/
+dist/
 build/
 
 # Environment variables
@@ -16,25 +17,21 @@ build/
 .env.test.local
 .env.production.local
 
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
 # Logs
+logs/
 *.log
 
 # Runtime data
-pids
+pids/
 *.pid
 *.seed
 *.pid.lock
 
 # Coverage directory used by tools like istanbul
 coverage/
+
+# nyc test coverage
+.nyc_output
 
 # Dependency directories
 jspm_packages/
@@ -52,7 +49,7 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
-.env.test
+.env
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -76,11 +73,33 @@ jspm_packages/
 # DynamoDB Local files
 .dynamodb/
 
-# Prisma
-prisma/dev.db
-prisma/dev.db-journal
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
 
 # Vercel
 .vercel
 
-.vercel
+# Temporary files
+*.tmp
+*.temp
