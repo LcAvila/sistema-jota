@@ -49,11 +49,25 @@ app.use(helmet({
 
 app.use(compression());
 
-// CORS SUPER SIMPLES - PERMITIR TUDO
+// CORS configurado para permitir o front-end
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = [
+    'https://jota-3jgv2osf3-lucas-avilas-projects.vercel.app',
+    'https://jota-tcihrnlwj-lucas-avilas-projects.vercel.app',
+    'https://jota-5ye51e6rl-lucas-avilas-projects.vercel.app',
+    'http://localhost:3000'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
